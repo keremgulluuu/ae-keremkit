@@ -1,0 +1,38 @@
+{
+  "_comment": "Design tokens, as written by tokens.py or by hand from an image. Mark guessed values with \"est\": true.",
+  "palette": {
+    "bg":   {"hex": "#0A0C0F", "alpha": 1.0, "ae": [0.0392, 0.0471, 0.0588]},
+    "card": {"hex": "#050607", "alpha": 1.0, "ae": [0.0196, 0.0235, 0.0275]},
+    "ink":  {"hex": "#EAEEF3", "alpha": 1.0, "ae": [0.9176, 0.9333, 0.9529]},
+    "mut":  {"hex": "#9EA8B2", "alpha": 1.0, "ae": [0.6196, 0.6588, 0.698]},
+    "lime": {"hex": "#C6FF3C", "alpha": 1.0, "ae": [0.7765, 1.0, 0.2353]},
+    "red":  {"hex": "#FF3B30", "alpha": 1.0, "ae": [1.0, 0.2314, 0.1882]},
+    "line": {"hex": "#EAEEF3", "alpha": 0.13, "ae": [0.9176, 0.9333, 0.9529]}
+  },
+  "roles": {
+    "text": [{"hex": "#EAEEF3", "alpha": 1.0, "name": "ink"}],
+    "background": [{"hex": "#0A0C0F", "alpha": 1.0, "name": "bg"}],
+    "border": [{"hex": "#EAEEF3", "alpha": 0.13, "name": "line"}]
+  },
+  "type": {
+    "fonts": ["Inter", "IBM Plex Mono"],
+    "weights": [400, 500, 700, 900],
+    "sizes_px": [88, 44, 26, 16, 13],
+    "largest": [{"where": ".hero h1", "px": 88}],
+    "tracking_ae": [{"value": -63, "uses": 1}, {"value": -28, "uses": 2}],
+    "line_height": 1.055
+  },
+  "shape": {"radius_px": [24, 20, 11], "border_px": ["1px"], "grid": ["64px 64px"]},
+  "effects": {
+    "glows": [
+      {"where": ".hero::before", "size_px": [460, 240], "at_percent": [94, 0], "color": "#C6FF3C", "name": "lime", "opacity": 0.19, "fade_end_percent": 76}
+    ],
+    "shadows": ["0 40px 110px rgba(0,0,0,.28)"]
+  },
+  "motion": {
+    "easing": [{"cubic_bezier": [0.22, 0.9, 0.28, 1.0], "out_influence": 22.0, "in_influence": 72.0, "feel": "ease-out (fast start, soft stop)"}],
+    "durations_s": [0.72, 0.82]
+  },
+  "design_width_px": 1200,
+  "source": "poster.html (scope: .poster)"
+}

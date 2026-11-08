@@ -1,0 +1,7 @@
+{
+  "placements": [
+    {"words": "camera.json", "cutlist": "camera.cut.json", "from": 0,    "to": 41.2, "at": 0,    "zone": "camera"},
+    {"words": "voice.json",  "cutlist": "voice.cut.json",  "from": 0,    "to": null, "at": 41.2, "zone": "voice"},
+    {"words": "camera.json", "cutlist": "camera.cut.json", "from": 41.2, "to": null, "at": 68.9, "zone": "camera"}
+  ]
+}

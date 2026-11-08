@@ -1,0 +1,14 @@
+{
+  "name": "keremkit",
+  "description": "After Effects editing tools for Claude Code",
+  "owner": {
+    "name": "yonetkege-pixel"
+  },
+  "plugins": [
+    {
+      "name": "ae-keremkit",
+      "source": "./plugins/ae-keremkit",
+      "description": "Edit styles, tight cutting, Whisper subtitles, sound-effect rules and a design library for After Effects."
+    }
+  ]
+}

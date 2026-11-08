@@ -1,0 +1,244 @@
+{
+  "_comment": "Example edit style. Keys starting with _ are explanations and may be omitted. Library items are referenced by ID. Any value the user did not decide stays null and is asked when needed.",
+  "id": "STY-001",
+  "kind": "edit-style",
+  "name": "Example Talk Style",
+  "names": {
+    "tr": "Örnek Konuşma Stili"
+  },
+  "aliases": [
+    "example",
+    "talk style"
+  ],
+  "summary": "Talking head + separate voice-over + screen recording; tight cuts, 2-line highlighted captions",
+  "version": 1,
+  "language": "en",
+  "default_format": "9x16",
+  "inputs": [
+    {
+      "role": "camera",
+      "kind": "video",
+      "required": true,
+      "patterns": [
+        "*camera*",
+        "*cam*",
+        "*a-cam*"
+      ],
+      "purpose": "main talking footage"
+    },
+    {
+      "role": "voice",
+      "kind": "audio",
+      "required": true,
+      "patterns": [
+        "*voice*",
+        "*vo*",
+        "*narration*"
+      ],
+      "purpose": "voice-over inserted in the middle of the camera part"
+    },
+    {
+      "role": "screen",
+      "kind": "video",
+      "required": false,
+      "patterns": [
+        "*screen*",
+        "*capture*",
+        "*recording*"
+      ],
+      "purpose": "shown over the voice part"
+    }
+  ],
+  "structure": {
+    "_comment": "Plain-language order of roles plus hints. split_cues are examples of a pattern, matched by meaning, not exact text.",
+    "order": [
+      "camera:part1",
+      "voice:all",
+      "camera:part2"
+    ],
+    "split_cues": [
+      {
+        "example": "let's look at the screen",
+        "cut": "after"
+      },
+      {
+        "example": "so how did I actually do it",
+        "cut": "before"
+      }
+    ],
+    "if_no_cue_found": "ask",
+    "notes": "The voice part starts right after the camera split; camera continues from the next sentence after the voice ends."
+  },
+  "formats": {
+    "9x16": {
+      "comp": [
+        1080,
+        1920,
+        30
+      ]
+    },
+    "16x9": {
+      "comp": [
+        1920,
+        1080,
+        30
+      ],
+      "overrides": {
+        "subtitles.positions.camera": [
+          960,
+          930
+        ]
+      }
+    }
+  },
+  "variants": [],
+  "cutting": {
+    "camera": {
+      "preset": "tight"
+    },
+    "voice": {
+      "preset": "tight",
+      "overrides": {
+        "pad_after": 0.1
+      }
+    }
+  },
+  "subtitles": {
+    "rules": {
+      "max_words_per_line": 2,
+      "max_lines": 2,
+      "min_words": 3,
+      "max_words": 4,
+      "split_mode": "hybrid",
+      "orphan": "rebalance",
+      "case": "upper",
+      "highlight": {
+        "modes": [
+          "keywords",
+          "numbers"
+        ],
+        "keywords": [],
+        "max_per_cue": 1
+      }
+    },
+    "font": "Montserrat-Black",
+    "size": 78,
+    "fill": "white",
+    "stroke": {
+      "color": "black",
+      "width": 8
+    },
+    "highlight": {
+      "properties": {
+        "ADBE Text Fill Color": "accent"
+      },
+      "_comment": "palette names allowed"
+    },
+    "motion": "pop 5 frames, scale 90->100, ease-out",
+    "positions": {
+      "camera": [
+        540,
+        1350
+      ],
+      "voice": [
+        540,
+        960
+      ]
+    },
+    "look_item": null
+  },
+  "look": {
+    "fonts": [
+      {
+        "use": "subtitles",
+        "font": "Montserrat-Black"
+      },
+      {
+        "use": "titles",
+        "font": "Montserrat-ExtraBold"
+      },
+      {
+        "use": "small labels",
+        "font": "Inter-Medium"
+      }
+    ],
+    "palette": {
+      "accent": [
+        1.0,
+        0.78,
+        0.0
+      ],
+      "white": [
+        1,
+        1,
+        1
+      ],
+      "black": [
+        0,
+        0,
+        0
+      ],
+      "panel": [
+        0.08,
+        0.08,
+        0.1
+      ]
+    },
+    "transitions": [
+      {
+        "id": "TRN-002",
+        "where": "camera <-> voice"
+      }
+    ],
+    "interstitials": [],
+    "motion": [
+      {
+        "id": "ANM-001",
+        "for": "UI entrances"
+      }
+    ],
+    "ui": [
+      {
+        "role": "voice",
+        "id": "UI-004",
+        "note": "progress bar at the top while the voice plays"
+      }
+    ]
+  },
+  "screen_recording": {
+    "when": "over the voice part, full length",
+    "how": "centered, 88% width, 24 px rounded corners, soft shadow, slide-up 10 frames",
+    "item": null,
+    "sync": "starts with the voice part; trimmed to its length"
+  },
+  "sfx": {
+    "rules": [
+      {
+        "event": "transition",
+        "sound": "whoosh",
+        "level_db": -16,
+        "offset_s": -0.1
+      },
+      {
+        "event": "subtitle_highlight",
+        "sound": null,
+        "note": "no sound on highlights"
+      }
+    ]
+  },
+  "render": {
+    "format": null,
+    "mode": null
+  },
+  "rules": [
+    "Camera part never shows the screen recording.",
+    "Keep at least 0.3 s before the voice part starts."
+  ],
+  "changelog": [
+    {
+      "version": 1,
+      "date": "2026-11-08",
+      "change": "created"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "max_words_per_line": 2,
+  "max_lines": 2,
+  "min_words": 3,
+  "max_words": 4,
+  "split_mode": "hybrid",
+  "orphan": "rebalance",
+  "case": "upper",
+  "highlight": {"modes": ["keywords", "numbers"], "keywords": ["free", "new", "secret"], "max_per_cue": 1}
+}

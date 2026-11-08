@@ -1,0 +1,98 @@
+{
+  "id": "UI-008",
+  "name": "Gold Counter",
+  "names": {
+    "tr": "Altın Sayaç"
+  },
+  "category": "ui",
+  "tags": [
+    "counter",
+    "number",
+    "count up",
+    "gold",
+    "shiny",
+    "metallic",
+    "stat",
+    "subscriber count",
+    "sayaç",
+    "altın",
+    "rakam",
+    "istatistik"
+  ],
+  "summary": "Gold gradient counter with a shine pass that counts up to a target value.",
+  "summaries": {
+    "tr": "Altın gradyanlı, parlamalı, hedef sayıya yükselen sayaç."
+  },
+  "comp": "LIB_UI-008_GoldCounter",
+  "file": "item.aep",
+  "preview": "preview.png",
+  "size": [
+    1920,
+    1080
+  ],
+  "fps": 30,
+  "duration": 3.0,
+  "suggested_position": "center",
+  "params": [
+    {
+      "key": "start",
+      "label": "Start number",
+      "type": "number",
+      "default": 0,
+      "target": {
+        "layer": "CTRL_Counter",
+        "property": [
+          "Effects",
+          "Start",
+          "Slider"
+        ]
+      },
+      "op": "property.set"
+    },
+    {
+      "key": "end",
+      "label": "End number",
+      "type": "number",
+      "default": 1000,
+      "target": {
+        "layer": "CTRL_Counter",
+        "property": [
+          "Effects",
+          "End",
+          "Slider"
+        ]
+      },
+      "op": "property.set"
+    },
+    {
+      "key": "main_color",
+      "label": "Main color",
+      "type": "color",
+      "default": [
+        0.96,
+        0.72,
+        0.0
+      ],
+      "target": {
+        "layer": "CTRL_Counter",
+        "property": [
+          "Effects",
+          "MainColor",
+          "Color"
+        ]
+      },
+      "op": "property.set"
+    }
+  ],
+  "deps": {
+    "fonts": [
+      "Montserrat-Black"
+    ],
+    "plugins": [],
+    "footage": []
+  },
+  "usage_note": "TXT_Value reads the number from CTRL_Counter by expression and formats thousands; change values via params, not the text.",
+  "created": "2026-11-08",
+  "version": 1,
+  "changes": []
+}
