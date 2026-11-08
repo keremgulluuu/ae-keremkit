@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "After Effects editing kit for Claude: remembered preferences, one-word edit styles, tight cutting with quick fixes, Whisper subtitles, sound-effect rules and a searchable design library.",
   "author": {
-    "name": "yonetkege-pixel"
+    "name": "keremgulluuu"
   },
-  "homepage": "https://github.com/yonetkege-pixel/ae-keremkit",
-  "repository": "https://github.com/yonetkege-pixel/ae-keremkit",
+  "homepage": "https://github.com/keremgulluuu/ae-keremkit",
+  "repository": "https://github.com/keremgulluuu/ae-keremkit",
   "license": "MIT",
   "keywords": ["after-effects", "video-editing", "subtitles", "whisper", "ffmpeg", "motion-design", "mcp"]
 }

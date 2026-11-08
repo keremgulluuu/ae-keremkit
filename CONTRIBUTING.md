@@ -16,7 +16,7 @@ Please don't attach client footage.
 ## Working on the code
 
 ```bash
-git clone https://github.com/yonetkege-pixel/ae-keremkit.git
+git clone https://github.com/keremgulluuu/ae-keremkit.git
 cd ae-keremkit
 python -m pip install pytest
 python -m pytest -q

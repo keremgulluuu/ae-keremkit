@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yonetkege-pixel/ae-keremkit/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/yonetkege-pixel/ae-keremkit/tests.yml?branch=main&label=tests&labelColor=0A0C0F&color=C6FF3C&style=flat-square" alt="tests"></a>
+  <a href="https://github.com/keremgulluuu/ae-keremkit/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/keremgulluuu/ae-keremkit/tests.yml?branch=main&label=tests&labelColor=0A0C0F&color=C6FF3C&style=flat-square" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-C6FF3C?labelColor=0A0C0F&style=flat-square" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/After%20Effects-2024%2B-C6FF3C?labelColor=0A0C0F&style=flat-square" alt="After Effects 2024+">
   <img src="https://img.shields.io/badge/python-3.9%2B-C6FF3C?labelColor=0A0C0F&style=flat-square" alt="Python 3.9+">
@@ -59,7 +59,7 @@ For the Claude desktop app and other options, follow the [server's README](https
 **Claude Code — from this repository (recommended):**
 
 ```bash
-claude plugin marketplace add yonetkege-pixel/ae-keremkit
+claude plugin marketplace add keremgulluuu/ae-keremkit
 claude plugin install ae-keremkit@keremkit
 ```
 
@@ -68,11 +68,11 @@ Inside a session you can do the same with `/plugin marketplace add` and `/plugin
 **Claude Code — manually:**
 
 ```bash
-git clone https://github.com/yonetkege-pixel/ae-keremkit.git
+git clone https://github.com/keremgulluuu/ae-keremkit.git
 cp -r ae-keremkit/plugins/ae-keremkit/skills/ae-keremkit ~/.claude/skills/
 ```
 
-**Claude app (claude.ai / desktop):** download `ae-keremkit-<version>.zip` from [Releases](https://github.com/yonetkege-pixel/ae-keremkit/releases), then go to **Customize → Skills → + → Upload a skill**. Code execution must be enabled under *Settings → Capabilities*.
+**Claude app (claude.ai / desktop):** download `ae-keremkit-<version>.zip` from [Releases](https://github.com/keremgulluuu/ae-keremkit/releases), then go to **Customize → Skills → + → Upload a skill**. Code execution must be enabled under *Settings → Capabilities*.
 
 ### 3. First run
 

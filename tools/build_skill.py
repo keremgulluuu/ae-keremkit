@@ -18,7 +18,7 @@ SKIP_FILES = {".DS_Store", "Thumbs.db"}
 
 def check_frontmatter():
     with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as f:
-        text = f.read()
+        text = f.read().replace("\r\n", "\n")  # Windows checkouts may use CRLF
     m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
     if not m:
         sys.exit("SKILL.md has no frontmatter")
