@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """KeremKit transcript tool - review, correct and de-duplicate a Whisper transcript (stdlib only).
 
-  review   W.json [--min-prob 0.6] [--from S] [--to S]
+  review   W.json [--min-prob 0.6] [--from S] [--to S] [--cutlist C.json [--at S]]
            compact transcript, one utterance per line ("mm:ss.s | text"), doubtful words
            marked as word(?0.42). This is what Claude reads to spot mis-heard words.
   fix      W.json --corrections C.json -o W.fixed.json
@@ -81,12 +81,29 @@ def utterances(ws, pause):
 
 
 # ---------------------------------------------------------------- review
+def to_out(cut, t):
+    for seg in cut["segments"]:
+        if seg["src_in"] - 1e-6 <= t <= seg["src_out"] + 1e-6:
+            return seg["out_in"] + (t - seg["src_in"])
+    return None
+
+
 def cmd_review(a):
     data = load(a.words)
     ws = words_of(data)
+    cut = load(a.cutlist) if a.cutlist else None
     flagged = 0
     for g in utterances(ws, a.pause):
         s, e = ws[g[0]].get("start", 0), ws[g[-1]].get("end", 0)
+        if cut:
+            # show output (timeline) times; utterances that were cut out are skipped
+            outs = [to_out(cut, (ws[i].get("start", 0) + ws[i].get("end", 0)) / 2) for i in g]
+            kept = [i for i, o in zip(g, outs) if o is not None]
+            if not kept:
+                continue
+            g = kept
+            s = next(o for o in outs if o is not None) + a.at
+            e = s
         if (a.frm is not None and e < a.frm) or (a.to is not None and s > a.to):
             continue
         parts = []
@@ -274,6 +291,8 @@ def main():
     r.add_argument("--pause", type=float, default=0.6)
     r.add_argument("--from", dest="frm", type=float)
     r.add_argument("--to", type=float)
+    r.add_argument("--cutlist", help="print timeline (output) times and skip what was cut - for chapters")
+    r.add_argument("--at", type=float, default=0.0, help="where the cut file starts on the timeline (s)")
     f = sp.add_parser("fix")
     f.add_argument("words")
     f.add_argument("--corrections", required=True)

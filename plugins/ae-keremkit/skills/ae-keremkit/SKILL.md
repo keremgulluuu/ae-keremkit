@@ -1,6 +1,6 @@
 ---
 name: ae-keremkit
-description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, audio-based silence cutting with retake/repeat/filler removal, transcript correction of mis-heard words (asks when unsure), quick time-based cut fixes, rule-driven Whisper subtitles, sound-effect rules, a searchable design library, copying a look from images, HTML/CSS, SVG, Lottie or projects, learning .ffx effect presets (effects, keyframes, required plugins), and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting pauses and retakes, subtitles/captions, applying or creating an edit style, saving or reusing a design ("save this", "add the gold counter"), copying a theme ("use the look of this poster"), presets ("which presets need Deep Glow?"), sound effects, safe areas, render - in any language, even when the kit is not named.
+description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, audio-based silence cutting with retake/repeat removal, transcript correction (asks when unsure), a technique catalogue (J/L cuts, jump-cut zoom, audio clean-up and loudness, multi-format, QC), layer organisation, Whisper subtitles, sound effects, a design library (items and whole projects), copying a look from references, learning .ffx presets, publishing helpers and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles, styles, audio, techniques ("what can you do with the sound?"), saving or reusing designs, presets, formats, QC, render - in any language, even when the kit is not named.
 license: MIT
 compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles.
 ---
@@ -28,7 +28,8 @@ KeremKit/
   styles/<slug>/style.json    edit styles;  styles/_archive/<slug>/v###/  previous versions
   learning/house-style.md     the user's general design rules
   learning/known-issues.md    solved problems (search by keyword)
-  tools/                      keremkit.py, transcript.py, cutlist.py, subtitles.py, tokens.py, presets.py, digest.py
+  tools/                      keremkit.py, transcript.py, cutlist.py, subtitles.py, audio.py, qc.py,
+                              techniques.py, tokens.py, presets.py, digest.py
 ```
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
@@ -80,7 +81,13 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | Sound effects | `references/sound-effects.md` |
 | The user shares a reference (image, HTML, CSS, SVG, Lottie, project) to copy its look | `references/design-import.md` |
 | Effect presets: learn a folder, answer questions about them, apply one | `references/presets.md` |
-| Saving something to the library, new categories | `references/library-save.md` |
+| "What can you do with the sound / cuts / ...?", techniques, adding a technique | `references/techniques.md` |
+| Audio clean-up, loudness, music, ducking | `references/audio.md` |
+| More formats (9:16, 1:1...) from one edit | `references/formats.md` |
+| Before the final render, "check everything" | `references/qc.md` |
+| Layer order, names, colour labels | `references/organize.md` |
+| Chapters, titles, thumbnails, export to Premiere/Resolve | `references/publish.md` |
+| Saving something (or a whole project) to the library, new categories | `references/library-save.md` |
 | Placing a saved item | `references/library-use.md` |
 | The user asks to check / look / take a screenshot | `references/verification.md` |
 | Project structure, safe areas, motion defaults, render | `references/standards.md` |
@@ -92,3 +99,6 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 - After designing a reusable element, offer once, in one line, to save it to the library.
 - After finishing an edit, ask once whether to save what was learned (`edit-styles.md` -> Learning). Do not ask again if declined.
 - New problem solved -> one entry in `learning/known-issues.md`.
+- After an edit, tidy the layers (`organize.md`) unless `organize.mode` is off.
+- **Project log:** keep `_keremkit/log.md` next to the project - one dated line per session or milestone (what was done, decisions, open items, the files in use). Read it first when a project is resumed in a new chat; it replaces re-reading the project. Keep it under ~60 lines; summarise older entries.
+- Something seems broken on the user's machine -> `keremkit.py doctor`.

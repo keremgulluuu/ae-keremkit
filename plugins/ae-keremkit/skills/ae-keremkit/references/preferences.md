@@ -34,6 +34,10 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `render.format` | first render | "What should the default output be? (e.g. MP4 H.264, ProRes 422)" |
 | `style_versioning.mode` | first time a style changes | "When a style changes, should I keep the old version? Every change / Only big changes / Only certain kinds (e.g. colors) / Never" |
 | `design_import.preview` | first time a look is copied from an image | see `design-import.md` (HTML preview question) |
+| `audio.target_lufs` | first audio processing without a known destination | "Where will this be published? (YouTube -14 LUFS, podcast -16, broadcast -23)" |
+| `formats.targets` | first multi-format request | "Which formats do you publish to? (16:9, 9:16, 1:1, 4:5)" |
+| `qc.mode` | default `ask` | "Should I always run the quality check before the final render?" |
+| `organize.mode` | default `auto`; change when the user asks | - |
 | `learning.ask_after_edit` | default true | - |
 
 ## Style versioning

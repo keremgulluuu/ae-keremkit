@@ -20,6 +20,9 @@ Commands
   cut     cut.json --from A --to B            remove an output range
   restore cut.json --src-from A --src-to B    put a source range back
   undo    cut.json                            revert the last edit
+  zoom    cut.json [--levels 100 110] [--emphasis subs.json] -o zoom.json
+                                              jump-cut zoom framing per segment + the AE Scale expression
+  export  cut.json --format edl|fcpxml -o FILE    timeline for Premiere / Resolve / Final Cut
   render  cut.json -o OUT [--crf N] [--x264-preset P] [--run]
                                               build (and with --run, execute) the ffmpeg render
 
@@ -462,6 +465,86 @@ def cmd_render(a):
     print(f"OK rendered {a.output} ({fmt(cl['out_duration'])}s, {n} segments)")
 
 
+def tc(seconds, fps):
+    f = int(round(seconds * fps))
+    r = int(round(fps))
+    return f"{f // (3600 * r):02d}:{f // (60 * r) % 60:02d}:{f // r % 60:02d}:{f % r:02d}"
+
+
+def cmd_zoom(a):
+    """Framing per output segment for jump-cut zoom (+ optional emphasis punch-ins), as data for AE."""
+    cl = load(a.cutlist)
+    lv = a.levels
+    entries = []
+    for i, s in enumerate(cl["segments"]):
+        z = lv[i % len(lv)] if a.mode == "alternate" else (lv[0] if i == 0 else lv[1] if s["src_in"] - cl["segments"][i - 1]["src_out"] > a.min_gap else lv[0])
+        entries.append({"s": round(s["out_in"] + a.at, 3), "e": round(s["out_out"] + a.at, 3), "z": z})
+    punches = 0
+    if a.emphasis:
+        subs = json.load(open(a.emphasis, encoding="utf-8"))
+        for c in subs.get("cues", []):
+            if not c.get("h"):
+                continue
+            t = c["s"]
+            for e in entries:
+                if e["s"] <= t < e["e"] and t - e["s"] > 0.2:
+                    # split the segment: punch in from the highlighted cue to the next cut
+                    entries.append({"s": round(t, 3), "e": e["e"], "z": a.emphasis_scale})
+                    e["e"] = round(t, 3)
+                    punches += 1
+                    break
+        entries.sort(key=lambda x: x["s"])
+    for prev, cur in zip(entries, entries[1:]):
+        if abs(prev["e"] - cur["s"]) < 1e-3 and prev["z"] != cur["z"]:
+            cur["p"] = prev["z"]               # previous framing, for an optional eased change
+    with open(a.output, "w", encoding="utf-8") as f:
+        json.dump({"v": 1, "cuts": entries}, f, separators=(",", ":"))
+    name = os.path.basename(a.output)
+    expr = (f'var d=footage("{name}").sourceData.cuts;var lo=0,hi=d.length-1,c=null;'
+            'while(lo<=hi){var m=(lo+hi)>>1;if(time<d[m].s)hi=m-1;else if(time>=d[m].e)lo=m+1;else{c=d[m];break;}}')
+    if a.ease_frames > 0:
+        expr += (f'if(c){{var z=c.z,f={a.ease_frames}*thisComp.frameDuration;'
+                 'if(c.p!==undefined&&time<c.s+f){z=ease(time,c.s,c.s+f,c.p,c.z);}[z,z];}else value;')
+    else:
+        expr += 'c?[c.z,c.z]:value;'
+    print(f"OK segments={len(entries)} punch_ins={punches} levels={lv} -> {a.output}")
+    print("SCALE_EXPRESSION " + expr)
+
+
+def cmd_export(a):
+    cl = load(a.cutlist)
+    fps = a.fps or cl.get("fps") or 30
+    media = cl["media"]
+    clip = os.path.basename(media)
+    out = []
+    if a.format == "edl":
+        out += [f"TITLE: {a.title or os.path.splitext(clip)[0]}", "FCM: NON-DROP FRAME", ""]
+        for i, s in enumerate(cl["segments"], 1):
+            out.append(f"{i:03d}  AX       AA/V  C        {tc(s['src_in'], fps)} {tc(s['src_out'], fps)} "
+                       f"{tc(s['out_in'] + a.start, fps)} {tc(s['out_out'] + a.start, fps)}")
+            out.append(f"* FROM CLIP NAME: {clip}")
+            out.append("")
+    else:
+        num, den = (1001, int(round(fps * 1001))) if abs(fps - round(fps)) > 0.001 else (1, int(round(fps)))
+        def r(t):
+            return f"{int(round(t * fps)) * num}/{den}s"
+        total = cl["out_duration"]
+        uri = "file://" + (media if media.startswith("/") else "/" + media.replace("\\", "/"))
+        out += ['<?xml version="1.0" encoding="UTF-8"?>', "<!DOCTYPE fcpxml>", '<fcpxml version="1.9">', "  <resources>",
+                f'    <format id="r1" frameDuration="{num}/{den}s"/>',
+                f'    <asset id="r2" name="{clip}" start="0s" duration="{r(cl["duration"])}" hasVideo="1" hasAudio="1" format="r1">',
+                f'      <media-rep kind="original-media" src="{uri}"/>', "    </asset>", "  </resources>",
+                f'  <library><event name="KeremKit"><project name="{a.title or "KeremKit cut"}">',
+                f'    <sequence format="r1" duration="{r(total)}" tcStart="0s"><spine>']
+        for s in cl["segments"]:
+            out.append(f'      <asset-clip ref="r2" name="{clip}" offset="{r(s["out_in"])}" start="{r(s["src_in"])}" '
+                       f'duration="{r(s["src_out"] - s["src_in"])}" format="r1"/>')
+        out += ["    </spine></sequence>", "  </project></event></library>", "</fcpxml>"]
+    with open(a.output, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(out) + "\n")
+    print(f"OK {a.format} events={len(cl['segments'])} fps={fps:g} -> {a.output}")
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -514,11 +597,30 @@ def main():
     rd.add_argument("--crf", type=int, default=18)
     rd.add_argument("--x264-preset", default="veryfast")
     rd.add_argument("--run", action="store_true")
+    z = sp.add_parser("zoom")
+    z.add_argument("cutlist")
+    z.add_argument("--levels", type=float, nargs="+", default=[100, 110])
+    z.add_argument("--mode", choices=["alternate", "gaps"], default="alternate",
+                   help="alternate every cut, or only change framing at cuts that removed > --min-gap")
+    z.add_argument("--min-gap", type=float, default=0.5)
+    z.add_argument("--emphasis", help="subs.json: punch in at highlighted cues")
+    z.add_argument("--emphasis-scale", type=float, default=118)
+    z.add_argument("--ease-frames", type=int, default=0, help="0 = hard cut between framings")
+    z.add_argument("--at", type=float, default=0.0, help="where the cut file starts on the timeline (s)")
+    z.add_argument("-o", "--output", required=True)
+    ex = sp.add_parser("export")
+    ex.add_argument("cutlist")
+    ex.add_argument("--format", choices=["edl", "fcpxml"], default="edl")
+    ex.add_argument("--fps", type=float)
+    ex.add_argument("--start", type=float, default=0.0, help="record timecode offset (s)")
+    ex.add_argument("--title")
+    ex.add_argument("-o", "--output", required=True)
     a = ap.parse_args()
     if a.cmd == "add" and a.at is None and (a.frm is None or a.to is None):
         ap.error("add needs --at T or --from A --to B")
     {"build": cmd_build, "show": cmd_show, "map": cmd_map, "add": cmd_add, "cut": cmd_cut,
-     "restore": cmd_restore, "undo": cmd_undo, "render": cmd_render}[a.cmd](a)
+     "restore": cmd_restore, "undo": cmd_undo, "render": cmd_render, "zoom": cmd_zoom,
+     "export": cmd_export}[a.cmd](a)
 
 
 if __name__ == "__main__":

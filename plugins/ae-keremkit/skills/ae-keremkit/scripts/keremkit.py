@@ -17,6 +17,9 @@ bookkeeping on the user's computer and prints only short results.
   add      META_OR_STYLE.json             add/update a catalog row (library item or style)
   style-archive SLUG --reason "..."       snapshot styles/SLUG/style.json into the archive
   validate                                check catalog rows point at real files
+  doctor                                  check Python, ffmpeg, Whisper, home folder, tool versions
+  pack   [--items ID ...] [--styles SLUG ...] [--all] -o share.zip   package styles/items to share
+  unpack share.zip                        import a package (ids renumbered on clashes; fonts/plugins listed)
   summary                                 counts per category
 
 All commands except `where`/`init` use the home from the pointer file; pass --home to override.
@@ -45,6 +48,8 @@ DEFAULT_CATEGORIES = [
     {"key": "fx-preset", "prefix": "FXP", "name": "Effect Presets", "desc": "learned .ffx presets: effects, keyframes, required plugins"},
     {"key": "color", "prefix": "CLR", "name": "Color Themes", "desc": "palettes and grades"},
     {"key": "edit-style", "prefix": "STY", "name": "Edit Styles", "desc": "complete edit recipes (stored under styles/)"},
+    {"key": "project", "prefix": "PRJ", "name": "Projects", "desc": "whole projects saved as reusable templates (all comps, footage, audio)"},
+    {"key": "technique", "prefix": "TEC", "name": "Techniques", "desc": "editing techniques (cuts, motion, audio, formats, QC, organisation) - see techniques.py"},
     {"key": "other", "prefix": "OTH", "name": "Other", "desc": "anything that fits nowhere else (suggest a new category when these pile up)"},
 ]
 
@@ -75,6 +80,17 @@ DEFAULT_PREFS = {
     "verification": {"screenshots": "on_request", "economic_thumb_width": 480, "motion_max_frames": 6},
     "style_versioning": {"mode": None, "rules": []},
     "learning": {"ask_after_edit": True},
+    "organize": {
+        "mode": "auto",        # auto | ask | off - tidy layers after each edit
+        "order": ["ADJ", "SUB", "TXT", "UI", "ICN", "SHP", "CTRL", "NULL", "CAM", "LGT", "FTG", "BG", "AUD", "SFX"],
+        "labels": {"ADJ": 5, "SUB": 1, "TXT": 2, "UI": 11, "ICN": 11, "SHP": 6, "CTRL": 0, "NULL": 0, "CAM": 14,
+                   "LGT": 14, "FTG": 8, "BG": 12, "AUD": 9, "SFX": 10, "MATTE": 15, "PRE": 3, "LIB": 13},
+        "folders": True,
+    },
+    "audio": {"chain": None, "target_lufs": -14, "music_db": -18},
+    "formats": {"targets": None},
+    "qc": {"mode": "ask"},
+    "publish": {"chapters": None, "thumbnails": None},
     "design_import": {"preview": None},
     "standards": {
         "safe_area": {"action": 0.93, "title": 0.90},
@@ -201,13 +217,16 @@ def cmd_init(a):
                 f.write(text)
     # copy the tools next to the data so they run on this computer
     here = os.path.dirname(os.path.abspath(__file__))
-    for s in ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "tokens.py", "presets.py", "digest.py"):
-        src = os.path.join(here, s)
+    for s in TOOLS:
+        src = os.path.join(here, s) if os.path.exists(os.path.join(here, s)) else os.path.join(here, "..", "assets", s)
         if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(h, "tools", s)):
             shutil.copy2(src, os.path.join(h, "tools", s))
     wjson(POINTER, {"home": h})
     print(f"OK home={h} pointer={POINTER}")
 
+
+TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "audio.py", "qc.py", "techniques.py",
+         "tokens.py", "presets.py", "digest.py", "techniques.json")
 
 LEARNING_FILES = {
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"
@@ -465,6 +484,160 @@ def cmd_summary(a):
         print(f"HINT\t{other} items in 'other' - consider suggesting a new category")
 
 
+def cmd_doctor(a):
+    import platform
+    import hashlib
+    import subprocess as sp_
+    ok = lambda k, v: print(f"OK\t{k}\t{v}")
+    warn = lambda k, v: print(f"WARN\t{k}\t{v}")
+    ok("python", platform.python_version()) if sys.version_info >= (3, 9) else warn("python", platform.python_version() + " (3.9+ needed)")
+    h = home_dir(a.home)
+    if os.path.isdir(os.path.join(h, "settings")):
+        ok("home", h)
+    else:
+        warn("home", f"{h} not set up - run init")
+    for tool in ("ffmpeg", "ffprobe"):
+        path = shutil.which(tool)
+        if path:
+            v = sp_.run([tool, "-version"], capture_output=True, text=True).stdout.split("\n")[0][:60]
+            ok(tool, v)
+        else:
+            warn(tool, "not found (needed for cutting, audio, QC)")
+    found = []
+    if shutil.which("whisper"):
+        found.append("openai-whisper (cli)")
+    for mod, label in (("whisper", "openai-whisper"), ("faster_whisper", "faster-whisper")):
+        r = sp_.run([sys.executable, "-c", f"import {mod}"], capture_output=True)
+        if r.returncode == 0:
+            found.append(label)
+    if shutil.which("whisper-cli"):
+        found.append("whisper.cpp")
+    ok("whisper", ", ".join(sorted(set(found)))) if found else warn("whisper", "not found (needed for transcripts and subtitles)")
+    here = os.path.dirname(os.path.abspath(__file__))
+    tools = os.path.join(h, "tools")
+    if os.path.isdir(tools) and os.path.abspath(tools) != here:
+        stale = []
+        for t in TOOLS:
+            src = os.path.join(here, t) if os.path.exists(os.path.join(here, t)) else os.path.join(here, "..", "assets", t)
+            dst = os.path.join(tools, t)
+            if os.path.exists(src):
+                if not os.path.exists(dst) or hashlib.md5(open(src, "rb").read()).digest() != hashlib.md5(open(dst, "rb").read()).digest():
+                    stale.append(t)
+        warn("tools", "outdated: " + ", ".join(stale) + " - run init to update") if stale else ok("tools", "up to date")
+    if os.path.isdir(os.path.join(h, "settings")):
+        prefs = deep_fill(rjson(prefs_path(h), {}), DEFAULT_PREFS)
+        n = 0
+
+        def walk(d):
+            nonlocal n
+            for v in d.values():
+                if v is None:
+                    n += 1
+                elif isinstance(v, dict):
+                    walk(v)
+        walk(prefs)
+        ok("preferences", f"{n} not answered yet (asked when needed)")
+    print("NOTE\tAfter Effects: Claude checks the MCP connection with ae_context")
+
+
+def safe_members(z):
+    for m in z.namelist():
+        if m.startswith("/") or ".." in m.replace("\\", "/").split("/"):
+            sys.exit(f"ERROR: unsafe path in package: {m}")
+    return z.namelist()
+
+
+def cmd_pack(a):
+    import zipfile
+    h = need_home(home_dir(a.home))
+    rows = read_catalog(h)
+    want = set(a.items or [])
+    styles = set(a.styles or [])
+    if a.all:
+        want = {r["id"] for r in rows if r["type"] == "item"}
+        styles = {os.path.basename(r["folder"]) for r in rows if r["type"] == "style"}
+    picked = [r for r in rows if r["id"] in want] + [r for r in rows if r["type"] == "style" and os.path.basename(r["folder"]) in styles]
+    if not picked:
+        sys.exit("ERROR: nothing selected (use --items, --styles or --all)")
+    fonts, plugins = set(), set()
+    with zipfile.ZipFile(a.output, "w", zipfile.ZIP_DEFLATED) as z:
+        for r in picked:
+            folder = os.path.join(h, r["folder"])
+            for base, _, files in os.walk(folder):
+                for f in files:
+                    full = os.path.join(base, f)
+                    z.write(full, os.path.relpath(full, h).replace("\\", "/"))
+            meta = rjson(os.path.join(folder, "style.json" if r["type"] == "style" else "meta.json"), {})
+            fonts.update((meta.get("deps") or {}).get("fonts", []))
+            fonts.update(f.get("font") for f in (meta.get("look") or {}).get("fonts", []) if isinstance(f, dict) and f.get("font"))
+            plugins.update(meta.get("requires_plugins") or [])
+            plugins.update((meta.get("deps") or {}).get("plugins", []))
+        for extra in ("settings/categories.json", "settings/techniques.json") + (("learning/house-style.md",) if a.house_style else ()):
+            if os.path.exists(os.path.join(h, extra)):
+                z.write(os.path.join(h, extra), "shared/" + extra)
+        manifest = {"kit": "keremkit", "created": date.today().isoformat(),
+                    "rows": picked, "fonts": sorted(f for f in fonts if f), "plugins": sorted(plugins)}
+        z.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1))
+    print(f"OK packed items={sum(r['type'] == 'item' for r in picked)} styles={sum(r['type'] == 'style' for r in picked)} "
+          f"fonts={len(manifest['fonts'])} plugins={len(manifest['plugins'])} -> {a.output}")
+
+
+def cmd_unpack(a):
+    import zipfile
+    h = need_home(home_dir(a.home))
+    with zipfile.ZipFile(a.file) as z:
+        safe_members(z)
+        man = json.loads(z.read("manifest.json"))
+        rows = read_catalog(h)
+        have = {r["id"]: r for r in rows}
+        cats = categories(h)
+        known_prefix = {c["prefix"] for c in cats}
+        added, renamed = 0, 0
+        for r in man["rows"]:
+            src_folder = r["folder"].rstrip("/")
+            new_id, new_folder = r["id"], src_folder
+            if r["id"] in have and have[r["id"]]["folder"] != src_folder:
+                prefix = r["id"].split("-")[0]
+                top = max([int(x.split("-")[1]) for x in have if x.startswith(prefix + "-")] + [0])
+                new_id = f"{prefix}-{top + 1:03d}"
+                new_folder = src_folder.replace(r["id"], new_id) if r["id"] in src_folder else src_folder + "-" + new_id
+                renamed += 1
+            for m in z.namelist():
+                if m == src_folder or m.startswith(src_folder + "/"):
+                    dst = os.path.join(h, new_folder + m[len(src_folder):])
+                    if m.endswith("/"):
+                        continue
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    with open(dst, "wb") as f:
+                        f.write(z.read(m))
+            meta_name = "style.json" if r["type"] == "style" else "meta.json"
+            mp = os.path.join(h, new_folder, meta_name)
+            meta = rjson(mp, {})
+            meta["id"] = new_id
+            wjson(mp, meta)
+            row = dict(r, id=new_id, folder=new_folder)
+            rows = [x for x in rows if x["id"] != new_id] + [row]
+            have[new_id] = row
+            added += 1
+            if new_id.split("-")[0] not in known_prefix and r.get("category"):
+                cats.append({"key": r["category"], "prefix": new_id.split("-")[0], "name": r["category"].title(), "desc": "imported"})
+                known_prefix.add(new_id.split("-")[0])
+        write_catalog(h, rows)
+        wjson(os.path.join(h, "settings", "categories.json"), {"categories": cats})
+        if "shared/settings/techniques.json" in z.namelist():
+            mine = rjson(os.path.join(h, "settings", "techniques.json"), {"groups": {}, "techniques": []})
+            theirs = json.loads(z.read("shared/settings/techniques.json"))
+            ids = {t["id"] for t in mine.get("techniques", [])}
+            mine.setdefault("techniques", []).extend(t for t in theirs.get("techniques", []) if t["id"] not in ids)
+            mine.setdefault("groups", {}).update({k: v for k, v in theirs.get("groups", {}).items() if k not in mine["groups"]})
+            wjson(os.path.join(h, "settings", "techniques.json"), mine)
+    print(f"OK imported={added} renamed_ids={renamed}")
+    if man.get("fonts"):
+        print("FONTS_NEEDED\t" + ", ".join(man["fonts"]))
+    if man.get("plugins"):
+        print("PLUGINS_NEEDED\t" + ", ".join(man["plugins"]))
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -498,13 +671,23 @@ def main():
     sa.add_argument("slug")
     sa.add_argument("--reason", required=True)
     sp.add_parser("validate")
+    sp.add_parser("doctor")
+    pk = sp.add_parser("pack")
+    pk.add_argument("--items", nargs="*")
+    pk.add_argument("--styles", nargs="*", help="style folder names (slugs)")
+    pk.add_argument("--all", action="store_true")
+    pk.add_argument("--house-style", action="store_true")
+    pk.add_argument("-o", "--output", required=True)
+    up = sp.add_parser("unpack")
+    up.add_argument("file")
     sp.add_parser("summary")
     a = ap.parse_args()
     if a.cmd == "cat" and a.action == "add" and not all([a.key, a.prefix, a.name]):
         ap.error("cat add needs --key --prefix --name")
     {"where": cmd_where, "init": cmd_init, "pref": cmd_pref, "cat": cmd_cat, "search": cmd_search,
      "new-id": cmd_new_id, "add": cmd_add, "style-archive": cmd_style_archive,
-     "validate": cmd_validate, "summary": cmd_summary}[a.cmd](a)
+     "validate": cmd_validate, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
+     "unpack": cmd_unpack}[a.cmd](a)
 
 
 if __name__ == "__main__":

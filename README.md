@@ -24,6 +24,8 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 - **A design library.** Save a counter, a title, a transition; place it later by name in English or your own language, with its parameters (*"gold counter, 0 to 25,000, at 2 seconds"*).
 - **Learns your presets.** Point it at your `.ffx` folder. Every preset becomes a card with its effects, keyframes and expressions, and the ones that need third-party plugins are marked. Ask "which presets use Deep Glow?" and get a real answer.
 - **Copy a look.** Point at a screenshot, a web page, CSS, an SVG, a Lottie file or a project. Its palette, type, radii, glows and easing become tokens you confirm, then an After Effects theme.
+- **Techniques on tap.** Ask "what can you do with the sound?" or "add some cuts" and get the options by name — loudness normalization, noise reduction, ducking, J-cut, L-cut, jump-cut zoom and more — with a one-line explanation each. Add your own techniques the same way.
+- **Clean, organised projects.** Layers are named, ordered and colour-labelled after every edit (your rules), a quality check runs before the final render, and one edit becomes 16:9, 9:16 and 1:1 versions.
 - **Preferences that stick.** Nothing is assumed. Each choice is asked once, when it matters, and remembered.
 - **Safety nets.** Numbered checkpoints before risky operations, standard layer naming, safe-area checks, a log of solved problems so the same error never costs time twice.
 
@@ -104,10 +106,14 @@ Talk to Claude normally, in any language. Some things you can say:
 | *Use the look of the top poster in `promo.html`, ignore the rest.* | Tokens extracted from that part only, confirmed, then built |
 | *Learn my presets in `User Presets`.* | Presets applied in a lab comp, read back, catalogued; plugin presets flagged |
 | *What does "Soft Glow Pop" do? Does it need a plugin?* | Answered from the preset card: effects, animated properties, timing, plugins |
+| *What can you do with the audio?* | Audio techniques listed with names and explanations, then applied |
+| *Add jump-cut zoom and an L-cut into the screen recording.* | Zoom data + one expression; audio tail extended past the cut |
+| *Make a vertical version too.* | Comp duplicated, resized, subtitles and UI moved into the 9:16 safe area |
+| *Save this whole project to the library.* | Project template with its footage, swappable inputs marked |
 | *Check it.* | Numeric checks first; one small frame only if needed |
 | *What did you learn from this edit? Save it to the style.* | Style updated; old version archived if you asked for that |
 
-More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [subtitles and cutting](docs/subtitles-and-cutting.md) · [copying a look](docs/design-import.md) · [presets](docs/presets.md) · [FAQ](docs/faq.md)
+More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [subtitles and cutting](docs/subtitles-and-cutting.md) · [copying a look](docs/design-import.md) · [presets](docs/presets.md) · [techniques](docs/techniques.md) · [FAQ](docs/faq.md)
 
 ## Tips
 
@@ -130,7 +136,8 @@ plugins/ae-keremkit/
   skills/ae-keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
-    scripts/                           transcript, cutlist, subtitles, tokens, presets, keremkit, digest
+    scripts/                           transcript, cutlist, subtitles, audio, qc, techniques,
+                                       tokens, presets, keremkit, digest
     assets/                            example style, tokens and library metadata
 docs/                                  user documentation
 examples/                              sample style, plan and subtitle rules

@@ -61,6 +61,18 @@ Then `keremkit.py add <item folder>/meta.json` (re-running updates the row).
 - Adjustable: end number, duration, main color
 - Warnings, if any (missing font, uncopied file)
 
+## Saving a whole project (category `project`, prefix `PRJ`)
+
+"Save this project to the library" keeps everything - all comps, footage, audio, effects - as a reusable template.
+
+1. Checkpoint the open project (`ae_save_project`), note its path **P**.
+2. `item.list` -> every footage file path. Copy them into `library/items/project/<ID>_<slug>/sources/` (keep sub-folders by type: `footage/`, `audio/`, `images/`), and `footage.replace` each item to its copy. Large files: say the total size first and ask - a project template with raw footage can be many GB; offer "structure only" (footage swapped for placeholders with `footage.replace_with_placeholder`) as the light option.
+3. `ae_save_project(path=<folder>/item.aep)` (Save As), preview frame of the main comp (not opened), then `project.open P`.
+4. `meta.json` as for items, plus: `main_comp`, `comps` (names), `swappable` - the footage the user will replace next time (e.g. camera, voice, screen), each `{"role": "camera", "item": "<project item name>", "note": "..."}` - ask the user which ones are swappable if it isn't obvious from names, and `deps` (fonts, plugins).
+5. `keremkit.py add`.
+
+Using it: "start a new video from the <name> project" -> copy `item.aep` to the user's new project folder (never edit the library copy), `project.open` the copy, then `footage.replace` each `swappable` item with the new files (matched by role, like style inputs). The style/transcript/cut pipeline can then run on the new footage.
+
 ## Updating an item
 
 "Update this item": same ID/folder, overwrite `item.aep`, `version` +1, one line in `changes`. A clearly different look (not just a parameter) = a new item with a new ID.

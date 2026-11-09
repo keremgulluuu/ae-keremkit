@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-11-09
+
+### Added
+- Techniques catalogue (`techniques.py`, `assets/techniques.json`): cuts (jump cut, jump-cut zoom, J-cut, L-cut, cutaway, match cut, cut on action, smash cut, whip, speed ramp, montage), motion, audio, formats, QC, organisation and publishing. Asking for a kind of work lists the techniques with names and explanations first; users can add their own.
+- `audio.py`: analysis (LUFS, true peak, range, noise floor) with advice, a clean-up chain (high-pass, denoise, de-ess, EQ, compression, two-pass loudness normalisation) and music ducking.
+- `qc.py`: render checks (black, frozen, long silence, loudness, true peak) and thumbnail frame candidates.
+- `cutlist.py zoom` (jump-cut zoom and emphasis punch-ins as one Scale expression) and `cutlist.py export` (EDL, FCPXML).
+- `transcript.py review --cutlist` for timeline times (chapters).
+- Library categories `project` (whole projects as templates with swappable footage) and `technique`.
+- `keremkit.py doctor`, `pack`/`unpack` for sharing styles and items with font/plugin requirements.
+- References for audio, formats, QC, layer organisation (automatic, preference-driven), publishing, and a project log habit.
+
 ## [1.2.0] - 2026-11-09
 
 ### Added
