@@ -67,8 +67,9 @@ DEFAULT_PREFS = {
         "python": None, "ffmpeg": None, "ffprobe": None,
         "whisper": {"impl": None, "path": None, "model": None, "device": None, "language": None},
     },
-    "subtitles": {"enabled": None, "engine": None, "build_mode": "data", "rules": {}, "font": None, "look": None},
-    "cutting": {"preset": None, "overrides": {}, "intermediate_codec": "h264", "crf": 18, "x264_preset": "veryfast"},
+    "subtitles": {"enabled": None, "engine": None, "build_mode": "data", "rules": {}, "font": None, "look": None,
+                  "glossary": []},
+    "cutting": {"preset": None, "repeats": None, "silence": "auto", "overrides": {}, "intermediate_codec": "h264", "crf": 18, "x264_preset": "veryfast"},
     "sfx": {"enabled": None, "rules": [], "level_db": -18, "min_gap_s": 0.4, "max_per_10s": 6},
     "render": {"mode": None, "format": None, "output_folder": None, "naming": "{project}_{format}_v{nnn}"},
     "verification": {"screenshots": "on_request", "economic_thumb_width": 480, "motion_max_frames": 6},
@@ -200,7 +201,7 @@ def cmd_init(a):
                 f.write(text)
     # copy the tools next to the data so they run on this computer
     here = os.path.dirname(os.path.abspath(__file__))
-    for s in ("keremkit.py", "cutlist.py", "subtitles.py", "tokens.py", "presets.py", "digest.py"):
+    for s in ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "tokens.py", "presets.py", "digest.py"):
         src = os.path.join(here, s)
         if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(h, "tools", s)):
             shutil.copy2(src, os.path.join(h, "tools", s))

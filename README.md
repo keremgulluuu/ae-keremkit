@@ -18,7 +18,8 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 <p align="center"><img src="docs/assets/features.svg" alt="Styles, cuts, subtitles, library, sound, safety" width="100%"></p>
 
 - **Edit styles.** Describe a style once — inputs, structure, fonts, palette, transitions, subtitle rules, sound effects — then say *"edit this in my Kerem style"*. Claude lists what it will use, asks if you want anything changed, and builds the edit.
-- **Tight cutting you can tweak.** Silences are removed from Whisper word timings. Every cut stays editable: *"0:10–0:12 is cut too fast, add a second"* is one command, not a re-edit.
+- **Tight cutting you can tweak.** Pauses are found in the real audio and confirmed with Whisper's words; retakes, repeated phrases and filler sounds are removed, keeping the take you finished. Every cut stays editable: *"0:10–0:12 is cut too fast, add a second"* is one command, not a re-edit.
+- **A transcript that's actually right.** Claude reads the transcript with the video's topic in mind and fixes mis-heard words ("Cloud" → "Claude"). Everything it changed comes back as a `time – old – new` list, and anything it isn't sure about is asked first.
 - **Subtitles with real rules.** Words per line, lines per cue, sentence-aware splitting, what to do with a leftover word, highlighted keywords and numbers, different positions for different parts of the video. One text layer in AE reads a data file, so changing a rule never touches your timeline.
 - **A design library.** Save a counter, a title, a transition; place it later by name in English or your own language, with its parameters (*"gold counter, 0 to 25,000, at 2 seconds"*).
 - **Learns your presets.** Point it at your `.ffx` folder. Every preset becomes a card with its effects, keyframes and expressions, and the ones that need third-party plugins are marked. Ask "which presets use Deep Glow?" and get a real answer.
@@ -92,6 +93,7 @@ Talk to Claude normally, in any language. Some things you can say:
 | You say | What happens |
 |---|---|
 | *Cut the silences in `interview.mp4`, keep it tight.* | Whisper → cut list → cut file → placed in your comp |
+| *Cut the pauses and the retakes, then add subtitles.* | Audio-based silence cut, retakes removed, transcript corrected (unsure words asked), subtitles built |
 | *0:10–0:12 feels rushed, give it a second.* | Pauses at those cuts are given back, the file re-renders, later clips shift |
 | *Bring back 1:20–1:25 from the original.* | That source range returns to the edit |
 | *Add subtitles, 3–4 words, two lines, highlight numbers.* | Rules saved, one data-driven subtitle layer added |
@@ -128,7 +130,7 @@ plugins/ae-keremkit/
   skills/ae-keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
-    scripts/                           cutlist, subtitles, tokens, presets, keremkit, digest
+    scripts/                           transcript, cutlist, subtitles, tokens, presets, keremkit, digest
     assets/                            example style, tokens and library metadata
 docs/                                  user documentation
 examples/                              sample style, plan and subtitle rules

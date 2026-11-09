@@ -7,7 +7,10 @@ cut too fast, add 1 s of breathing room" becomes one command instead of a re-edi
 
 Commands
   build   --words W.json --media FILE [--preset tight|normal|relaxed]
-          [--pad-before S] [--pad-after S] [--max-pause S] [--duration S] [--fps N] -o cut.json
+          [--pad-before S] [--pad-after S] [--max-pause S] [--duration S] [--fps N]
+          [--silence auto|on|off] [--noise-db DB] [--remove repeats.json] -o cut.json
+          Pauses are found in the real audio (ffmpeg silencedetect) and confirmed with the words;
+          --remove drops repeats/false starts found by transcript.py.
   show    cut.json [--from A --to B]          compact summary (+ boundaries in range)
   map     cut.json (--out T | --src T)        convert a time between output and source
   add     cut.json --from A --to B --sec X    give back X s of removed pause inside output range
@@ -25,6 +28,7 @@ Times are seconds. Every edit prints one short line; nothing large is printed.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -178,6 +182,62 @@ def fmt(t):
 
 
 # ---------------------------------------------------------------- commands
+def detect_silences(media, max_pause, noise_db=None):
+    """Silent stretches from the actual audio (ffmpeg silencedetect).
+
+    Whisper word timestamps often run into the pause after a word, so cutting on words
+    alone leaves part of every pause in. The audio itself says where speech stops.
+    Returns ([(start, end)], threshold_db) or (None, None) when ffmpeg is unavailable."""
+    if not shutil.which("ffmpeg"):
+        return None, None
+    if noise_db is None:
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", media, "-map", "0:a:0",
+                            "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True)
+        m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", r.stderr or "")
+        if not m:
+            return None, None
+        # speech sits around the mean; silence is well below it
+        noise_db = max(-55.0, min(-28.0, float(m.group(1)) - 16.0))
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", media, "-map", "0:a:0",
+                        "-af", f"silencedetect=noise={noise_db}dB:d={max(0.05, max_pause)}", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    starts = [float(x) for x in re.findall(r"silence_start:\s*(-?[\d.]+)", r.stderr or "")]
+    ends = [float(x) for x in re.findall(r"silence_end:\s*(-?[\d.]+)", r.stderr or "")]
+    if len(ends) < len(starts):          # silence runs to the end of the file
+        ends.append(float("inf"))
+    return [(max(0.0, a), b) for a, b in zip(starts, ends)], noise_db
+
+
+def subtract(intervals, holes):
+    out = []
+    for x, y in intervals:
+        parts = [[x, y]]
+        for hx, hy in holes:
+            nxt = []
+            for px, py in parts:
+                if hy <= px or hx >= py:
+                    nxt.append([px, py])
+                else:
+                    if hx > px:
+                        nxt.append([px, hx])
+                    if hy < py:
+                        nxt.append([hy, py])
+            parts = nxt
+        out.extend(parts)
+    return out
+
+
+def load_removals(path, include_uncertain=False):
+    """Ranges to drop (repeats, false starts, fillers) from transcript.py repeats."""
+    if not path:
+        return [], 0
+    data = json.load(open(path, encoding="utf-8"))
+    items = data.get("removals", data) if isinstance(data, dict) else data
+    keep = [(float(r["src_in"]), float(r["src_out"])) for r in items
+            if r.get("apply", r.get("confidence") == "high") or (include_uncertain and r.get("confidence") == "low")]
+    return keep, len(keep)
+
+
 def cmd_build(a):
     words = load_words(a.words)
     p = dict(PRESETS[a.preset])
@@ -187,22 +247,44 @@ def cmd_build(a):
     dur, fps, has_v, has_a = probe(a.media)
     dur = a.duration or dur or (words[-1][1] + p["pad_after"])
     fps = a.fps or fps
-    raw = [[s - p["pad_before"], e + p["pad_after"]] for s, e, _ in words]
+    word_iv = [[s, e] for s, e, _ in words]
+
+    silences, noise = (None, None)
+    if a.silence != "off" and has_a is not False:
+        silences, noise = detect_silences(a.media, p["max_pause"], a.noise_db)
+        if silences is None and a.silence == "on":
+            sys.exit("ERROR: silence detection needs ffmpeg with an audio stream")
+    if silences:
+        # speech = audio that is not silent, kept only where Whisper heard words (drops coughs, clicks, noise)
+        speech = subtract([[0.0, dur]], [(x, min(y, dur)) for x, y in silences])
+        speech = [iv for iv in speech if any(w[0] < iv[1] and w[1] > iv[0] for w in word_iv)]
+        raw = [[x - p["pad_before"], y + p["pad_after"]] for x, y in speech]
+        mode = f"audio+words (silence < {noise:.0f} dB)"
+    else:
+        raw = [[s - p["pad_before"], e + p["pad_after"]] for s, e in word_iv]
+        mode = "words only"
     merged = []
     for iv in sorted(raw):
         if merged and iv[0] - merged[-1][1] <= p["max_pause"]:
             merged[-1][1] = max(merged[-1][1], iv[1])
         else:
             merged.append(iv)
+    removals, n_rem = load_removals(a.remove, a.include_uncertain)
+    if removals:
+        merged = subtract(merged, removals)
     segs = normalize(merged, fps, dur)
-    cl = {"kk": "cutlist", "version": 1, "media": os.path.abspath(a.media), "duration": round(dur, 4),
-          "fps": fps, "has_video": has_v, "has_audio": has_a, "params": dict(p, preset=a.preset),
-          "words_file": os.path.abspath(a.words), "segments": [{"src_in": x, "src_out": y} for x, y in segs]}
+    cl = {"kk": "cutlist", "version": 2, "media": os.path.abspath(a.media), "duration": round(dur, 4),
+          "fps": fps, "has_video": has_v, "has_audio": has_a,
+          "params": dict(p, preset=a.preset, silence=mode, noise_db=noise),
+          "words_file": os.path.abspath(a.words), "removals": [list(r) for r in removals],
+          "segments": [{"src_in": x, "src_out": y} for x, y in segs]}
     save(a.output, cl)
     cl = load(a.output)
     removed = dur - cl["out_duration"]
+    rep_s = sum(y - x for x, y in removals)
     print(f"OK segments={len(cl['segments'])} source={fmt(dur)}s output={fmt(cl['out_duration'])}s "
-          f"removed={fmt(removed)}s ({removed / dur * 100:.0f}%) preset={a.preset}")
+          f"removed={fmt(removed)}s ({removed / dur * 100:.0f}%) preset={a.preset} mode={mode}"
+          + (f" repeats_removed={n_rem} ({rep_s:.1f}s)" if n_rem else ""))
 
 
 def cmd_show(a):
@@ -393,6 +475,11 @@ def main():
     b.add_argument("--preset", choices=list(PRESETS), default="normal")
     for k in ("pad-before", "pad-after", "max-pause", "duration", "fps"):
         b.add_argument("--" + k, type=float, dest=k.replace("-", "_"))
+    b.add_argument("--silence", choices=["auto", "on", "off"], default="auto",
+                   help="cut on the real audio silence too (needs ffmpeg); auto = when available")
+    b.add_argument("--noise-db", type=float, help="silence threshold in dB (default: from the file's loudness)")
+    b.add_argument("--remove", help="removals JSON from transcript.py repeats (repeats, false starts, fillers)")
+    b.add_argument("--include-uncertain", action="store_true", help="also remove low-confidence repeats")
     b.add_argument("-o", "--output", required=True)
     s = sp.add_parser("show")
     s.add_argument("cutlist")

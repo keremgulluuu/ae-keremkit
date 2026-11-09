@@ -1,6 +1,6 @@
 ---
 name: ae-keremkit
-description: After Effects editing kit for Claude - remembers the user's preferences, runs a whole edit from a named edit style, cuts silences tightly with quick time-based fixes ("add 1 s of breathing room at 0:10-0:12"), builds flexible Whisper subtitles, applies sound-effect rules, keeps a searchable design library, copies a look from an image, HTML/CSS, SVG, Lottie or AE project, learns the user's .ffx effect presets (effects, keyframes, required plugins), and saves checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles/captions, applying or creating an edit style, saving or reusing a design ("save this", "add the gold counter"), copying a theme from a reference ("use the look of this poster"), learning or applying effect presets ("learn my presets", "which presets need Deep Glow?"), sound effects, safe areas, render - in any language, even when the user does not name the kit.
+description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, audio-based silence cutting with retake/repeat/filler removal, transcript correction of mis-heard words (asks when unsure), quick time-based cut fixes, rule-driven Whisper subtitles, sound-effect rules, a searchable design library, copying a look from images, HTML/CSS, SVG, Lottie or projects, learning .ffx effect presets (effects, keyframes, required plugins), and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting pauses and retakes, subtitles/captions, applying or creating an edit style, saving or reusing a design ("save this", "add the gold counter"), copying a theme ("use the look of this poster"), presets ("which presets need Deep Glow?"), sound effects, safe areas, render - in any language, even when the kit is not named.
 license: MIT
 compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles.
 ---
@@ -28,7 +28,7 @@ KeremKit/
   styles/<slug>/style.json    edit styles;  styles/_archive/<slug>/v###/  previous versions
   learning/house-style.md     the user's general design rules
   learning/known-issues.md    solved problems (search by keyword)
-  tools/                      keremkit.py, cutlist.py, subtitles.py, tokens.py, presets.py, digest.py
+  tools/                      keremkit.py, transcript.py, cutlist.py, subtitles.py, tokens.py, presets.py, digest.py
 ```
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
@@ -51,7 +51,7 @@ Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; defau
 4. Read little: `layer.info` with `detail: "summary"`; never return a whole project export inline (use `outPath` + `digest.py`); call `ae_catalog <category>` only for the category needed and remember it.
 5. `eval.run` is usually disabled - use catalog operations; if a job cannot be done with them, say so.
 6. Search catalogs and known issues with the tools or grep; open only the one file needed.
-7. Heavy analysis happens outside AE: transcription (Whisper) and cut decisions (`cutlist.py`). Read their one-line results, not the media.
+7. Heavy analysis happens outside AE: transcription (Whisper), corrections and repeats (`transcript.py`), cut decisions (`cutlist.py`). Read their short results and the compact transcript, never the media or raw JSON.
 8. Same method failed twice -> stop and report briefly (what, error, likely cause, proposal).
 9. Bulk change -> try it on one layer, then apply to all.
 
@@ -74,6 +74,7 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | First use, `NOT_SET_UP`, or the user asks to (re)configure | `references/setup.md` |
 | A preference is null, the user states one, or a question is needed | `references/preferences.md` |
 | The user names an edit style, wants a new one, or an edit just finished | `references/edit-styles.md` |
+| Any spoken recording: transcribe, fix mis-heard words, remove retakes/repeats/fillers | `references/transcript.md` (first), then `references/cutting.md` |
 | Cutting silences, tight cuts, "add/remove time at X s" fixes | `references/cutting.md` |
 | Subtitles (Whisper, line/word rules, highlights, placement) | `references/subtitles.md` |
 | Sound effects | `references/sound-effects.md` |

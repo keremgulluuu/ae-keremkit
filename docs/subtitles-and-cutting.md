@@ -14,6 +14,24 @@ Whisper runs once per recording and its JSON (with word timestamps) is reused fo
 | turbo | fast | close to large | ~6 GB VRAM |
 | large-v3 | slowest | best | ~10 GB VRAM |
 
+## Corrections and repeats — `transcript.py`
+
+```bash
+python transcript.py review cam.json                                   # compact transcript, doubtful words marked
+python transcript.py fix cam.json --corrections corr.json -o cam.fixed.json
+python transcript.py repeats cam.fixed.json -o repeats.json            # retakes, repeats, stutters, fillers
+python transcript.py accept repeats.json --ids 3 --reject 4
+```
+
+Claude reads the transcript with the video's topic in mind and fixes mis-heard words. You get the list in this form, and anything uncertain is asked before it's used:
+
+```
+00:12 - Kılavd - Claude
+01:03 - after a fax - After Effects
+```
+
+Retakes keep the later, finished take. Single repeated words are asked about, since many are intentional ("slowly slowly", "yavaş yavaş").
+
 ## Cutting — `cutlist.py`
 
 A cut list records which parts of one recording are kept, with both source and output times.
@@ -31,7 +49,7 @@ python cutlist.py map cam.cut.json --out 42.5
 | normal | 0.10 s | 0.15 s | 0.35 s |
 | relaxed | 0.15 s | 0.25 s | 0.70 s |
 
-Cuts snap to the source frame rate, every cut gets a 5 ms audio fade, and the output is constant frame rate so After Effects stays in sync.
+Pauses are detected in the audio itself and confirmed with the words, so they are removed completely even when Whisper's word timings run long. `--remove repeats.json` cuts the retakes too. Cuts snap to the source frame rate, every cut gets a 5 ms audio fade, and the output is constant frame rate so After Effects stays in sync.
 
 ## Subtitles — `subtitles.py`
 

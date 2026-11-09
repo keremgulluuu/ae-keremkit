@@ -13,15 +13,16 @@ plan.json         timeline plan when a style interleaves several inputs
 
 ## Build
 
-1. Transcribe (see `subtitles.md` -> Transcribe) - word timestamps are required.
+0. Run the transcript pipeline first (`transcript.md`): corrected words + `repeats.json`.
+1. Transcribe (see `transcript.md` -> Transcribe with context) - word timestamps are required.
 2. Preset: the style's `cutting` for this role, else `cutting.preset` (ask once if null: "How tight should the cuts be? Tight / Normal / Relaxed"), plus any `overrides`.
    | preset | keeps before a word | after a word | longest pause kept |
    |---|---|---|---|
    | tight | 0.05 s | 0.08 s | 0.15 s |
    | normal | 0.10 s | 0.15 s | 0.35 s |
    | relaxed | 0.15 s | 0.25 s | 0.70 s |
-3. `cutlist.py build --words cam.json --media cam.mp4 --preset tight [--pad-before .. --pad-after .. --max-pause ..] -o cam.cut.json`
-   Segments snap to the source frame rate; every cut gets a 5 ms audio fade (no clicks).
+3. `cutlist.py build --words cam.fixed.json --media cam.mp4 --preset tight --remove repeats.json [--pad-before .. --pad-after .. --max-pause .. --noise-db ..] -o cam.cut.json`
+   Pauses come from the real audio (silencedetect) confirmed by the words; retakes, repeats and fillers from `repeats.json` are removed; segments snap to the source frame rate; every cut gets a 5 ms audio fade (no clicks). Check the result line says `mode=audio+words`.
 4. `cutlist.py render cam.cut.json -o cam_cut.mp4 --run [--crf N --x264-preset P]` (defaults from `cutting.crf` / `cutting.x264_preset`; constant frame rate output so AE stays in sync).
 5. Import into AE (`project.import_file`), or if the layer already exists and the path is the same, `footage.reload`.
 

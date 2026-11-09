@@ -10,7 +10,9 @@ Use `tools.whisper` from preferences (impl, path, model, device, language). Alwa
 - faster-whisper (Python): `WhisperModel(model, device=...)`, `transcribe(path, word_timestamps=True, language=...)`, then save `{"segments":[{"words":[{"word","start","end"}]}]}`
 - whisper.cpp: `-ojf` (full JSON) gives tokens; if word times are missing, use another impl or tell the user.
 
-Language: `tools.whisper.language` if set, else the style's language, else auto-detect. Transcribe each spoken input once and keep the JSON; all later rule/cut changes reuse it.
+Language: `tools.whisper.language` if set, else the style's language, else auto-detect. Always pass an initial prompt with the topic and glossary (`transcript.md`). Transcribe each spoken input once and keep the JSON; all later rule/cut changes reuse it.
+
+**Before building subtitles, correct the transcript** (`transcript.md` -> Smart correction) and build from the `*.fixed.json`. Subtitles never show a word the user has not had the chance to confirm when it was uncertain.
 
 For decisions that need the words (split points, highlight choices), read **compact text** only: Whisper's `.txt`, or `subtitles.py preview` (one line per cue). Never paste the JSON into the conversation.
 

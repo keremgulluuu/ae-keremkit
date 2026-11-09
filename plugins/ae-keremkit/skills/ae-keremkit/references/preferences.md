@@ -26,6 +26,8 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `subtitles.enabled`, `engine`, `tools.whisper.model` | setup | see `setup.md` |
 | `subtitles.rules.*` | first subtitle build | see `subtitles.md` |
 | `subtitles.font`, `subtitles.look` | first subtitle build without a style | "Do you have a font and look in mind for subtitles, or shall I suggest one?" |
+| `cutting.repeats` | first cut of a spoken recording | "Should I remove retakes and repeated phrases automatically? (I will still ask about unclear ones.)" |
+| `subtitles.glossary` | a video with names/brands/jargon | "Are there names or terms I should always spell exactly?" |
 | `cutting.preset` | first cut | "How tight should the cuts be? Tight (almost no pauses) / Normal / Relaxed" |
 | `sfx.enabled` | first edit that could use SFX | "Should edits use sound effects?" |
 | `render.mode` | first finished edit | "Should I render the final video? Start automatically / Ask me first / Only add it to the queue" |
