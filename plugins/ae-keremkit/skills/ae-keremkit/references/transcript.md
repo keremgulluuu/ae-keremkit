@@ -19,6 +19,7 @@ Run 2-4 on the corrected file (`*.fixed.json`) once corrections exist; the cut l
 Whisper mis-hears names, brands and jargon ("Claude" -> "Cloud", "Kılavd"). Give it the context up front - it prevents most errors:
 - openai-whisper: `--initial_prompt "<topic>. <glossary terms, comma separated>."`
 - faster-whisper: `initial_prompt=...`
+- **Verbatim matters for repeats.** Whisper tends to "clean up" speech and silently drops false starts and repeated words - then they can't be found in the text. Make the prompt itself disfluent so Whisper keeps them, e.g. for Turkish: `"Ee, şey, bugün size, bugün size Claude'u anlatacağım. Iıı, yani..."` (adapt to the language), plus the topic and glossary. Audio that has no words at all is dropped by the cut anyway, which catches many of the retakes Whisper still skips.
 - The topic comes from the user's request, the file name, or the style; the glossary from `subtitles.glossary` (global) plus the style's `subtitles.glossary`. If neither exists and the video is clearly about specific names, ask once: "What is this video about, and are there names or terms I should spell exactly?" and save the terms to the glossary.
 
 ## 2-3. Smart correction
