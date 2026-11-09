@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -12,14 +20,30 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.9", "3.13"]
+        exclude:
+          # macos-latest is arm64 and actions/python-versions only ships 3.9 for x64.
+          - os: macos-latest
+            python: "3.9"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - uses: FedericoCarboni/setup-ffmpeg@v3
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install ffmpeg (macOS / Windows)
+        if: runner.os != 'Linux'
+        uses: FedericoCarboni/setup-ffmpeg@v3
         continue-on-error: true
-      - run: python -m pip install pytest
+      - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: python tools/build_skill.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ae-keremkit-${{ matrix.os }}-py${{ matrix.python }}
+          path: dist/*.zip
+          if-no-files-found: error

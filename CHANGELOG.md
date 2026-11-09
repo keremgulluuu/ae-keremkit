@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Repository consistency tests (`tests/test_repo.py`): plugin metadata, `SKILL.md` frontmatter, reference links, docs links, examples, changelog/version agreement, Python 3.9 syntax, standard-library-only imports and the claude.ai zip.
+- `requirements-dev.txt` and pytest configuration in `pyproject.toml`.
+- CI: manual runs, pip cache, concurrency, Ubuntu ffmpeg, build artifact upload and a tag/version check before release.
+
+### Fixed
+- `tools/build_skill.py` writes POSIX paths inside the zip, so builds made on Windows are portable.
+
 ## [1.3.0] - 2026-11-09
 
 ### Added

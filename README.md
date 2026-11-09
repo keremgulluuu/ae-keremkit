@@ -149,10 +149,12 @@ tools/make_art.py                      regenerates the README artwork
 ## Development
 
 ```bash
-python -m pip install pytest
+python -m pip install -r requirements-dev.txt
 python -m pytest -q          # ffmpeg render test is skipped if ffmpeg is missing
 python tools/build_skill.py  # dist/ae-keremkit-<version>.zip
 ```
+
+`tests/test_repo.py` also checks repository consistency (metadata, docs links, changelog/version, the skill zip) without needing After Effects or media.
 
 Tagging `v*` builds the zip and attaches it to a GitHub release. See [CONTRIBUTING.md](CONTRIBUTING.md).
 

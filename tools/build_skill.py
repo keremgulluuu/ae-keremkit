@@ -46,7 +46,8 @@ def main():
                 if name in SKIP_FILES or name.endswith(".pyc"):
                     continue
                 full = os.path.join(base, name)
-                z.write(full, os.path.join("ae-keremkit", os.path.relpath(full, SKILL)))
+                rel = os.path.relpath(full, SKILL).replace(os.sep, "/")
+                z.write(full, f"ae-keremkit/{rel}")
                 count += 1
     print(f"{out} ({count} files)")
 
