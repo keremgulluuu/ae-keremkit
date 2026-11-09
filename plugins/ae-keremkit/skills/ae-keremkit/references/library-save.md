@@ -61,6 +61,19 @@ Then `keremkit.py add <item folder>/meta.json` (re-running updates the row).
 - Adjustable: end number, duration, main color
 - Warnings, if any (missing font, uncopied file)
 
+## Saving many items at once (a template pack)
+
+When the user brings a pack (one `.aep` with dozens of finished comps), keep the source and split it:
+
+1. Copy the pack's `.aep` and its footage to `library/packs/<PackName>/` (`<PackName>_source.aep`, `sources/`), open that copy - never the user's original.
+2. Plan all items first (names, tags, categories, params) from one `comp.info`/`item.list` pass, so the loop below is mechanical.
+3. Per item, **one AE call at a time**: `project.reduce {comps:[...]}` (alone) -> [`footage.replace` to the item's `sources/` copies] -> `ae_save_project(path=<item>/item.aep)` -> `ae_render_frame` preview -> `project.undo` (count = 1 + number of replaces). Undo restores the full pack project - much faster than reopening.
+4. Write `meta.json` per item (with `source: {pack, original_comp}`), then one `keremkit.py add` per item (or a short loop on the user's machine).
+5. Finish with `project.open` on the pack copy (or the user's project) so nothing can overwrite the last item.
+6. Report: items saved per category, any that failed and why.
+
+Parameters inside nested comps: record `target.comp` for each parameter (the nested comp that holds the control), and say in `usage_note` that nested comps are shared between duplicates.
+
 ## Saving a whole project (category `project`, prefix `PRJ`)
 
 "Save this project to the library" keeps everything - all comps, footage, audio, effects - as a reusable template.

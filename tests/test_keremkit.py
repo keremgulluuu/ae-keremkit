@@ -95,3 +95,19 @@ def test_style_archive_keeps_reason(home):
     archived = path / "styles" / "_archive" / "talk" / "v001"
     assert "captions turned yellow" in (archived / "CHANGE.txt").read_text(encoding="utf-8")
     assert json.loads((style / "style.json").read_text(encoding="utf-8"))["version"] == 2
+
+
+def test_old_catalog_columns_are_migrated(home):
+    path, env = home
+    item = path / "library" / "items" / "ui" / "UI-001_card"
+    item.mkdir(parents=True)
+    (item / "meta.json").write_text(json.dumps({"id": "UI-001", "name": "Card"}), encoding="utf-8")
+    (path / "library" / "CATALOG.tsv").write_text(
+        "id\ttype\tcategory\tname_tr\tname_en\tsummary\tfolder\tsearch\n"
+        "UI-001\titem\tui\tSayaç Kartı\tCounter Card\ts\tlibrary/items/ui/UI-001_card\tui 001 sayac karti counter card\n",
+        encoding="utf-8")
+    hits = kk(env, "search", "sayac").stdout
+    assert "Counter Card / Sayaç Kartı" in hits
+    run("keremkit.py", "init", path, env=env)
+    assert (path / "library" / "CATALOG.tsv").read_text(encoding="utf-8").startswith("id\ttype\tcategory\tname\tlocal_name")
+    assert "UI-001" in kk(env, "search", "counter").stdout

@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Library categories `project` (whole projects as templates with swappable footage) and `technique`.
 - `keremkit.py doctor`, `pack`/`unpack` for sharing styles and items with font/plugin requirements.
 - References for audio, formats, QC, layer organisation (automatic, preference-driven), publishing, and a project log habit.
+- Lessons from the first real library import (135 items from a template pack): fast split loop with `project.reduce` + `project.undo`, one AE call at a time, `project.rename` verification, nested-comp parameters, faster-whisper decoder workaround.
+
+### Fixed
+- Catalogs created by 1.0 (`name_tr`/`name_en` columns) broke search; they are now read transparently and migrated by `init`.
 
 ## [1.2.0] - 2026-11-09
 

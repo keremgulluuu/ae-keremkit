@@ -35,6 +35,16 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 | Subtitle layer shows nothing | `footage("<name>")` must equal the imported item name exactly; time beyond last cue shows empty by design |
 | `keremkit.py` says NOT_SET_UP | run `keremkit.py init` (setup.md) |
 
+## Learned in real use (After Effects MCP)
+
+- **One AE call at a time.** Never send two AE tool calls in parallel: the second raises "a second script while another script was already running". Clear it with `instance.dismiss_dialog` and retry.
+- **`project.auto_fix_expressions` fails** with "Illegal use of reserved word" - don't use it; rename with `project.rename` or `item.set_props`.
+- **`project.rename` with a map can silently skip names** (~20% in a large batch). Always re-check the count afterwards (`item.list` / `comp.info`) and fix the rest with `item.set_props` by id.
+- **`project.reduce` + `project.undo`**: undo restores the full project, which is much faster than reopening it. `footage.replace` after a reduce is a second undo step (`project.undo {count: 2}`). Keep `project.reduce` in its own call so a failed reduce never triggers an undo of earlier work.
+- **After a save-as loop the open project points at the last saved copy.** Finish with `project.open` on the original so a Ctrl+S can't overwrite a library item.
+- **faster-whisper crashes** with `av.open() got an unexpected keyword 'metadata_errors'` (PyAV version mismatch) or `cublas64_12.dll not found`: extract a 16 kHz mono WAV with ffmpeg, load it as a numpy array and pass that to `transcribe()`; run `device="cpu", compute_type="int8"` until CUDA libraries are installed (`pip install nvidia-cublas-cu12 nvidia-cudnn-cu12`).
+- **Old catalogs**: libraries made with 1.0 use `name_tr`/`name_en` columns. Current tools read them, and `keremkit.py init` rewrites the catalog in the new format.
+
 ## Built-in pitfalls
 
 - PostScript font names (`Montserrat-Bold`, not "Montserrat Bold") - verify with `font.list` / `font.info`.

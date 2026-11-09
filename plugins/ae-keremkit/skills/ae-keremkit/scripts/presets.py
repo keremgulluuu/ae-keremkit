@@ -225,7 +225,11 @@ def catalog_add(home, meta, folder):
             for line in f:
                 if line.strip():
                     p = line.rstrip("\n").split("\t")
-                    rows.append(dict(zip(head, p + [""] * (len(head) - len(p)))))
+                    r = dict(zip(head, p + [""] * (len(head) - len(p))))
+                    if "name" not in r:                       # 1.0 catalog columns
+                        r["name"] = r.pop("name_en", "") or r.get("name_tr", "")
+                        r["local_name"] = r.pop("name_tr", "")
+                    rows.append(r)
     toks = []
     for p in [meta["id"], meta["name"], CATEGORY, "preset", "ffx", meta["summary"]] + meta["tags"]:
         for t in norm(str(p)).split():

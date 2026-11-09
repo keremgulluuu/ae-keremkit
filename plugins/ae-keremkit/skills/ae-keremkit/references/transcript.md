@@ -22,6 +22,8 @@ Whisper mis-hears names, brands and jargon ("Claude" -> "Cloud", "Kılavd"). Giv
 - **Verbatim matters for repeats.** Whisper tends to "clean up" speech and silently drops false starts and repeated words - then they can't be found in the text. Make the prompt itself disfluent so Whisper keeps them, e.g. for Turkish: `"Ee, şey, bugün size, bugün size Claude'u anlatacağım. Iıı, yani..."` (adapt to the language), plus the topic and glossary. Audio that has no words at all is dropped by the cut anyway, which catches many of the retakes Whisper still skips.
 - The topic comes from the user's request, the file name, or the style; the glossary from `subtitles.glossary` (global) plus the style's `subtitles.glossary`. If neither exists and the video is clearly about specific names, ask once: "What is this video about, and are there names or terms I should spell exactly?" and save the terms to the glossary.
 
+faster-whisper on Windows can crash on the audio decoder (PyAV) - see `troubleshooting.md`: decode with ffmpeg to a 16 kHz mono WAV first and pass the samples in.
+
 ## 2-3. Smart correction
 
 `transcript.py review cam.json` prints one line per utterance: `mm:ss.s | text`, with doubtful words marked `word(?0.42)` (Whisper's own low confidence). Read it **as an editor would**: knowing the video's topic, find words that make a sentence meaningless, ungrammatical or off-topic, mis-heard names (also the ones Whisper was confident about), split or merged words ("after a fax" -> "After Effects"), and wrong suffixes.

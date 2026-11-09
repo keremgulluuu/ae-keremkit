@@ -28,6 +28,8 @@ Batch B (needs that id):
 - time (`layer.set_timing startTime`)
 - verify: `layer.bounds` (inside title-safe), `comp.sample` if timing matters
 
+A parameter whose `target.comp` is a **nested** comp: that nested comp is shared by every copy. For a single use, set it directly. For a second copy with different values, duplicate the nested comp too and swap it into the copy with `layer.replace_source` before setting values.
+
 If the user asks for a value that is not a defined parameter, change the property anyway, then ask in one line whether to make it a permanent parameter.
 
 Size mismatch (e.g. 16:9 item into a 9:16 comp): scale to fit the safe area and mention it.

@@ -207,6 +207,11 @@ def cmd_init(a):
         if c["key"] != "edit-style":
             os.makedirs(os.path.join(h, "library", "items", c["key"]), exist_ok=True)
     cat_file = os.path.join(h, "library", "CATALOG.tsv")
+    if os.path.exists(cat_file):
+        with open(cat_file, encoding="utf-8") as f:
+            old = "name_en" in f.readline()
+        if old:
+            write_catalog(h, read_catalog(h))   # migrate 1.0 columns
     if not os.path.exists(cat_file):
         with open(cat_file, "w", encoding="utf-8", newline="\n") as f:
             f.write("\t".join(CATALOG_COLS) + "\n")
@@ -242,6 +247,10 @@ LEARNING_FILES = {
                        "- Cause: comp.duplicate shares nested precomps.\n- Fix: keep parameters on top-level layers (CTRL_ null).\n\n"
                        "## [batch, id] New item id unknown inside the same batch\n"
                        "- Cause: ops in a batch cannot read earlier results.\n- Fix: get the id with comp.info at the end of batch A, use it in batch B.\n\n"
+                       "## [ae, parallel, dialog] 'second script while another script was already running'\n"
+                       "- Cause: two AE calls sent at the same time.\n- Fix: one AE call at a time; instance.dismiss_dialog, retry.\n\n"
+                       "## [rename, project.rename] Some names were not changed\n"
+                       "- Cause: project.rename with a map can skip names in big batches.\n- Fix: recheck counts, fix the rest with item.set_props by id.\n\n"
                        "## [json, sourceData, subtitles] Subtitle expression error 'footage not found'\n"
                        "- Cause: footage() name differs from the imported item name.\n- Fix: use the exact project item name (with extension).\n",
 }
@@ -334,8 +343,17 @@ def read_catalog(h):
             line = line.rstrip("\n")
             if line.strip():
                 parts = line.split("\t")
-                rows.append(dict(zip(head, parts + [""] * (len(head) - len(parts)))))
+                rows.append(migrate_row(dict(zip(head, parts + [""] * (len(head) - len(parts))))))
     return rows
+
+
+def migrate_row(r):
+    """Catalogs written by 1.0 used name_tr / name_en columns; map them to name / local_name."""
+    if "name" not in r:
+        r["name"] = r.pop("name_en", "") or r.get("name_tr", "")
+        r["local_name"] = r.pop("name_tr", "")
+    r.setdefault("local_name", "")
+    return r
 
 
 def write_catalog(h, rows):
