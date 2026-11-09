@@ -1,6 +1,6 @@
 ---
 name: ae-keremkit
-description: After Effects editing kit for Claude - remembers the user's preferences, runs a whole edit from a named edit style, cuts silences tightly with quick time-based fixes ("add 1 s of breathing room at 0:10-0:12"), builds flexible Whisper subtitles, applies sound-effect rules, keeps a searchable design library, copies a look from an image, HTML/CSS, SVG, Lottie or AE project, and saves checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles/captions, applying or creating an edit style, saving or reusing a design ("save this", "add the gold counter"), copying a theme from a reference ("use the look of this poster"), sound effects, safe areas, render - in any language, even when the user does not name the kit.
+description: After Effects editing kit for Claude - remembers the user's preferences, runs a whole edit from a named edit style, cuts silences tightly with quick time-based fixes ("add 1 s of breathing room at 0:10-0:12"), builds flexible Whisper subtitles, applies sound-effect rules, keeps a searchable design library, copies a look from an image, HTML/CSS, SVG, Lottie or AE project, learns the user's .ffx effect presets (effects, keyframes, required plugins), and saves checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles/captions, applying or creating an edit style, saving or reusing a design ("save this", "add the gold counter"), copying a theme from a reference ("use the look of this poster"), learning or applying effect presets ("learn my presets", "which presets need Deep Glow?"), sound effects, safe areas, render - in any language, even when the user does not name the kit.
 license: MIT
 compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles.
 ---
@@ -28,7 +28,7 @@ KeremKit/
   styles/<slug>/style.json    edit styles;  styles/_archive/<slug>/v###/  previous versions
   learning/house-style.md     the user's general design rules
   learning/known-issues.md    solved problems (search by keyword)
-  tools/                      keremkit.py, cutlist.py, subtitles.py, tokens.py, digest.py
+  tools/                      keremkit.py, cutlist.py, subtitles.py, tokens.py, presets.py, digest.py
 ```
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
@@ -78,6 +78,7 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | Subtitles (Whisper, line/word rules, highlights, placement) | `references/subtitles.md` |
 | Sound effects | `references/sound-effects.md` |
 | The user shares a reference (image, HTML, CSS, SVG, Lottie, project) to copy its look | `references/design-import.md` |
+| Effect presets: learn a folder, answer questions about them, apply one | `references/presets.md` |
 | Saving something to the library, new categories | `references/library-save.md` |
 | Placing a saved item | `references/library-use.md` |
 | The user asks to check / look / take a screenshot | `references/verification.md` |

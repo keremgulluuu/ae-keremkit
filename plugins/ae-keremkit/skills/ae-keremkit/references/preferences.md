@@ -21,6 +21,7 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `language.reply` | never (follow the user) | - |
 | `language.library` | set silently from the user's language (SKILL.md) | - |
 | `paths.materials.*` | setup / first time a material is needed | "Which folder holds your <kind> files?" |
+| `paths.presets` | first time presets are learned | "Which folder holds your After Effects presets?" |
 | `paths.footage_folders` | first edit that needs footage | "Which folder holds the material for this edit? (Tell me once - I'll remember it.)" |
 | `subtitles.enabled`, `engine`, `tools.whisper.model` | setup | see `setup.md` |
 | `subtitles.rules.*` | first subtitle build | see `subtitles.md` |

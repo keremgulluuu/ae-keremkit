@@ -21,6 +21,7 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 - **Tight cutting you can tweak.** Silences are removed from Whisper word timings. Every cut stays editable: *"0:10–0:12 is cut too fast, add a second"* is one command, not a re-edit.
 - **Subtitles with real rules.** Words per line, lines per cue, sentence-aware splitting, what to do with a leftover word, highlighted keywords and numbers, different positions for different parts of the video. One text layer in AE reads a data file, so changing a rule never touches your timeline.
 - **A design library.** Save a counter, a title, a transition; place it later by name in English or your own language, with its parameters (*"gold counter, 0 to 25,000, at 2 seconds"*).
+- **Learns your presets.** Point it at your `.ffx` folder. Every preset becomes a card with its effects, keyframes and expressions, and the ones that need third-party plugins are marked. Ask "which presets use Deep Glow?" and get a real answer.
 - **Copy a look.** Point at a screenshot, a web page, CSS, an SVG, a Lottie file or a project. Its palette, type, radii, glows and easing become tokens you confirm, then an After Effects theme.
 - **Preferences that stick.** Nothing is assumed. Each choice is asked once, when it matters, and remembered.
 - **Safety nets.** Numbered checkpoints before risky operations, standard layer naming, safe-area checks, a log of solved problems so the same error never costs time twice.
@@ -99,10 +100,12 @@ Talk to Claude normally, in any language. Some things you can say:
 | *Gold counter, 0 to 25,000, starting at 2 seconds.* | Found, configured, placed — no redesign |
 | *Edit `D:\Shoot\0412` in my Kerem style, vertical.* | Style summary for confirmation, then the full edit |
 | *Use the look of the top poster in `promo.html`, ignore the rest.* | Tokens extracted from that part only, confirmed, then built |
+| *Learn my presets in `User Presets`.* | Presets applied in a lab comp, read back, catalogued; plugin presets flagged |
+| *What does "Soft Glow Pop" do? Does it need a plugin?* | Answered from the preset card: effects, animated properties, timing, plugins |
 | *Check it.* | Numeric checks first; one small frame only if needed |
 | *What did you learn from this edit? Save it to the style.* | Style updated; old version archived if you asked for that |
 
-More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [subtitles and cutting](docs/subtitles-and-cutting.md) · [copying a look](docs/design-import.md) · [FAQ](docs/faq.md)
+More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [subtitles and cutting](docs/subtitles-and-cutting.md) · [copying a look](docs/design-import.md) · [presets](docs/presets.md) · [FAQ](docs/faq.md)
 
 ## Tips
 
@@ -125,7 +128,7 @@ plugins/ae-keremkit/
   skills/ae-keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
-    scripts/                           cutlist, subtitles, tokens, keremkit, digest
+    scripts/                           cutlist, subtitles, tokens, presets, keremkit, digest
     assets/                            example style, tokens and library metadata
 docs/                                  user documentation
 examples/                              sample style, plan and subtitle rules

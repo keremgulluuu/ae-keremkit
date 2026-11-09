@@ -42,6 +42,7 @@ DEFAULT_CATEGORIES = [
     {"key": "transition", "prefix": "TRN", "name": "Transitions", "desc": "scene and shot transitions"},
     {"key": "interstitial", "prefix": "INT", "name": "Interstitials", "desc": "bumpers, chapter cards, inserts between parts"},
     {"key": "motion", "prefix": "ANM", "name": "Motion Designs", "desc": "in/out moves, pops, bounces, .ffx presets"},
+    {"key": "fx-preset", "prefix": "FXP", "name": "Effect Presets", "desc": "learned .ffx presets: effects, keyframes, required plugins"},
     {"key": "color", "prefix": "CLR", "name": "Color Themes", "desc": "palettes and grades"},
     {"key": "edit-style", "prefix": "STY", "name": "Edit Styles", "desc": "complete edit recipes (stored under styles/)"},
     {"key": "other", "prefix": "OTH", "name": "Other", "desc": "anything that fits nowhere else (suggest a new category when these pile up)"},
@@ -57,6 +58,7 @@ DEFAULT_PREFS = {
     "setup": {"completed": False, "asked": [], "skipped": []},
     "paths": {
         "materials": {"images": None, "icons": None, "sfx": None, "music": None, "fonts": None, "luts": None, "other": []},
+        "presets": [],
         "web_sources": [],
         "footage_folders": [],
         "work_files": "next_to_project",
@@ -198,7 +200,7 @@ def cmd_init(a):
                 f.write(text)
     # copy the tools next to the data so they run on this computer
     here = os.path.dirname(os.path.abspath(__file__))
-    for s in ("keremkit.py", "cutlist.py", "subtitles.py", "tokens.py", "digest.py"):
+    for s in ("keremkit.py", "cutlist.py", "subtitles.py", "tokens.py", "presets.py", "digest.py"):
         src = os.path.join(here, s)
         if os.path.exists(src) and os.path.abspath(src) != os.path.abspath(os.path.join(h, "tools", s)):
             shutil.copy2(src, os.path.join(h, "tools", s))
