@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.8.0"
+KIT_VERSION = "1.8.1"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -209,7 +209,7 @@ def cmd_where(a):
 
 def cmd_init(a):
     h = os.path.abspath(a.path or a.home or home_dir())
-    for d in ("settings", "library/items", "styles/_archive", "learning", "tools"):
+    for d in ("settings", "library/items", "styles/_archive", "learning", "tools", "extensions"):
         os.makedirs(os.path.join(h, d), exist_ok=True)
     prefs_p = os.path.join(h, "settings", "preferences.json")
     wjson(prefs_p, deep_fill(rjson(prefs_p, {}), DEFAULT_PREFS))
@@ -623,7 +623,14 @@ def cmd_doctor(a):
             if os.path.exists(src):
                 if not os.path.exists(dst) or hashlib.md5(open(src, "rb").read()).digest() != hashlib.md5(open(dst, "rb").read()).digest():
                     stale.append(t)
-        warn("tools", "outdated: " + ", ".join(stale) + " - run init to update") if stale else ok("tools", "up to date")
+        warn("tools", "differ from the skill: " + ", ".join(stale) + " - update only if the user asks") if stale else ok("tools", "up to date")
+        own = sorted(f for f in os.listdir(tools) if f not in TOOLS and f.endswith(".py"))
+        if own:
+            warn("tools", "not kit files: " + ", ".join(own) + " - user tools belong in extensions/<id>/")
+    ext = os.path.join(h, "extensions")
+    if os.path.isdir(ext):
+        names = sorted(d for d in os.listdir(ext) if os.path.isdir(os.path.join(ext, d)))
+        ok("extensions", ", ".join(names) if names else "none")
     if os.path.isdir(os.path.join(h, "settings")):
         prefs = deep_fill(rjson(prefs_path(h), {}), DEFAULT_PREFS)
         n = 0

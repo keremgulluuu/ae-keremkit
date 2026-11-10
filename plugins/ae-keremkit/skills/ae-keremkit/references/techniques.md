@@ -25,6 +25,8 @@ Never apply a technique the user did not choose unless their style or a saved pr
 
 "Add a technique called X: ..." -> `techniques.py add --id x --group cuts --name "X" --what "..." [--when "..."] [--how "..."] [--auto]`. New groups are created on the fly. If the technique needs a recipe in AE (ops, an expression, a preset or a library item), put that in `--how` (e.g. `"preset FXP-012"` or `"library UI-004"`). `techniques.py remove <id>` removes user techniques.
 
+A technique that needs its own script or a long recipe: put them in `KeremKit/extensions/<id>/` (`<name>.py`, `README.md`) and point `--how` at `extensions/<id>/README.md`. It is usable at once - never add it to the skill or to `KeremKit/tools/`.
+
 ## Applying the built-in ones
 
 | id | How |

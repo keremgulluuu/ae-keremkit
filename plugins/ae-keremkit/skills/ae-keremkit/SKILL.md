@@ -34,7 +34,16 @@ KeremKit/
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
 
-**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.8.0` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.8.0").
+**Tools version:** once per session, `python tools/keremkit.py version` (this skill is `KeremKit 1.8.1`). If it differs or fails, say so in one line ("KeremKit tools are older than the skill - say 'update KeremKit' to update them") and carry on with what works. Update the tools (`scripts/keremkit.py init`, or copying `scripts/` into `KeremKit/tools/`) **only when the user asks for exactly that**.
+
+## The skill is read-only - the kit grows in the home folder
+
+Never edit, repackage or re-version this skill, its scripts or the kit's own files in `KeremKit/tools/`, and never write a CHANGELOG or version number - not even to add something new. Everything learned goes into the KeremKit home folder and works right away:
+
+- A new technique -> `techniques.py add` (card in `settings/techniques.json`).
+- A new tool, script or long how-to for it -> `KeremKit/extensions/<id>/` (`<name>.py` + `README.md`); the card's `--how` points there (`"extensions/<id>/README.md"`). Extensions use only the standard library, like the kit's tools.
+- A rule or preference -> `custom_rules` / `pref set`; a solved problem -> `learning/known-issues.md`; a design -> the library.
+- Something that truly needs the skill itself changed (a bug in a kit tool, a wrong instruction) -> one entry in `learning/skill-change-requests.md` (file, problem, proposed change) and one line to the user. The skill's maintainer applies it.
 
 **Running the tools:** plain Python (standard library) plus ffmpeg/Whisper, run on the user's computer through whatever access the session has (a device shell, Claude Code's own shell). The same scripts ship in this skill's `scripts/` folder; `keremkit.py init` copies them into `KeremKit/tools/`. Without shell access, stage the needed file(s) into the workspace, run the bundled script there, and write the results back. On Windows the command may be `py` instead of `python`.
 
@@ -44,7 +53,7 @@ Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; defau
 - `null` = never answered: ask **once, when it is first needed**, with the templates in `references/preferences.md`; save immediately with `pref set`.
 - A lasting preference stated in passing ("always keep captions yellow") is saved right away and confirmed in one line. If it is unclear whether it is global or for one style, ask once.
 - Style settings override global ones. A real **conflict** between a style rule and a global rule is never resolved silently - state both and ask.
-- New ideas that fit no field go into `custom_rules` or the style's `rules`; the kit grows by conversation. If an idea needs a change to this skill itself, say so and offer an updated version.
+- New ideas that fit no field go into `custom_rules` or the style's `rules`; the kit grows by conversation, never by changing the skill (see "The skill is read-only").
 
 ## Token rules (always on)
 

@@ -238,3 +238,16 @@ def test_add_many(tmp_path):
     assert m["size"] == [1080, 1920] and m["names"]["tr"] == "Kırmızı Kilit" and m["deps"]["fonts"] == ["Montserrat"]
     assert m["source"]["pack"] == "ME v2"
     assert "UI-050" in run("keremkit.py", "--home", kk, "search", "kirmizi", "kilit").stdout
+
+
+def test_skill_forbids_self_update_and_doctor_flags_user_tools(tmp_path):
+    skill = (ROOT / "plugins" / "ae-keremkit" / "skills" / "ae-keremkit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "The skill is read-only" in skill and "only when the user asks" in skill
+    env = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path))
+    kk = tmp_path / "KK"
+    run("keremkit.py", "init", kk, env=env)
+    assert (kk / "extensions").is_dir()
+    (kk / "tools" / "texturelock.py").write_text("print(1)\n")
+    (kk / "extensions" / "texture-lock").mkdir()
+    out = run("keremkit.py", "--home", kk, "doctor", env=env).stdout
+    assert "not kit files: texturelock.py" in out and "texture-lock" in out

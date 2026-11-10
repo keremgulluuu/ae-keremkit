@@ -36,8 +36,9 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 | `keremkit.py` says NOT_SET_UP | run `keremkit.py init` (setup.md) |
 | Catalog search finds nothing / catalog was edited by hand | `keremkit.py reindex` rebuilds it from the meta files |
 | `ERROR: package rejected` on unpack | the package's manifest points outside the KeremKit folder - don't import it; ask where it came from |
-| `keremkit.py version` fails or shows an older version | the tools in `KeremKit/tools/` are outdated: run the skill's `keremkit.py init` (SKILL.md -> Tools up to date) |
-| `missing fields: name_tr, name_en` from `add` | outdated tools (before 1.2) - update them; current `add` needs only `name` (+ `names`) |
+| `keremkit.py version` fails or shows an older version | the tools in `KeremKit/tools/` are older than the skill: tell the user in one line; update (`keremkit.py init`) only when asked (SKILL.md -> Tools version) |
+| `missing fields: name_tr, name_en` from `add` | tools older than 1.2 - tell the user they can update; until then add `name_en` / `name_tr` to the meta.json |
+| Tempted to change the skill or a kit tool to add something | don't - extensions go to `KeremKit/extensions/<id>/`, change requests to `learning/skill-change-requests.md` (SKILL.md -> The skill is read-only) |
 | Library previews black / empty / tiny | `previews.py scan`; repair as in `previews.md` -> Repairing old previews |
 | A save after a dialog left no file (`save-check` says NOT WRITTEN) | the "second script" dialog blocked it: `instance.dismiss_dialog`, `ae_project_info`, save again |
 | Black items vanish in previews | `render.frame` writes no alpha (transparent becomes black): use the render-queue flow in `previews.md` (TIFF with alpha) |

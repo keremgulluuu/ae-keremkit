@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.8.1] - 2026-11-10
+
+### Changed
+- **The skill is read-only for Claude.** New techniques, tools and how-tos go straight into the KeremKit home folder (`techniques.py add`, `KeremKit/extensions/<id>/`) and work at once; Claude no longer edits, repackages or re-versions the skill or the kit's tools. Real skill bugs go to `learning/skill-change-requests.md`.
+- Different tool versions are reported in one line instead of updated automatically; updating happens only when the user asks.
+- `keremkit.py init` creates `extensions/`; `doctor` lists extensions and flags user scripts sitting in `tools/`.
+
 ## [1.8.0] - 2026-11-10
 
 ### Added
