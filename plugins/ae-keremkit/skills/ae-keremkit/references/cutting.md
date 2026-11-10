@@ -22,7 +22,7 @@ plan.json         timeline plan when a style interleaves several inputs
    | normal | 0.10 s | 0.15 s | 0.35 s |
    | relaxed | 0.15 s | 0.25 s | 0.70 s |
 3. `cutlist.py build --words cam.fixed.json --media cam.mp4 --preset tight --remove repeats.json [--pad-before .. --pad-after .. --max-pause .. --noise-db ..] -o cam.cut.json`
-   Pauses come from the real audio (silencedetect) confirmed by the words; retakes, repeats and fillers from `repeats.json` are removed; segments snap to the source frame rate; every cut gets a 5 ms audio fade (no clicks). Check the result line says `mode=audio+words`.
+   Pauses come from the real audio, with a threshold relative to the speaker: the median level inside Whisper's words minus 10 dB (`--rel-db`, or an absolute `--noise-db`), confirmed by the words; retakes, repeats and fillers from `repeats.json` are removed; segments snap to the source frame rate; every cut gets an 8 ms audio fade (no clicks). Check the result line says `mode=audio+words`.
 4. `cutlist.py render cam.cut.json -o cam_cut.mp4 --run [--crf N --x264-preset P]` (defaults from `cutting.crf` / `cutting.x264_preset`; constant frame rate output so AE stays in sync).
 5. Import into AE (`project.import_file`), or if the layer already exists and the path is the same, `footage.reload`.
 

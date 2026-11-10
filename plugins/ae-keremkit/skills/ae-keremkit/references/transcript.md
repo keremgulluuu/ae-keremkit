@@ -24,6 +24,10 @@ Whisper mis-hears names, brands and jargon ("Claude" -> "Cloud", "Kılavd"). Giv
 
 faster-whisper on Windows can crash on the audio decoder (PyAV) - see `troubleshooting.md`: decode with ffmpeg to a 16 kHz mono WAV first and pass the samples in.
 
+## Word indices
+
+`transcript.py words cam.json [--cutlist cam.cut.json]` prints every word as `index:word`, one utterance per line - the cheapest way to point at a word. Use indices for corrections (`{"index": 28, "new": "Grok"}` in the corrections file; several words allowed) and for edit plans (`edit-plan.md`). Indices refer to that exact words file.
+
 ## 2-3. Smart correction
 
 `transcript.py review cam.json` prints one line per utterance: `mm:ss.s | text`, with doubtful words marked `word(?0.42)` (Whisper's own low confidence). Read it **as an editor would**: knowing the video's topic, find words that make a sentence meaningless, ungrammatical or off-topic, mis-heard names (also the ones Whisper was confident about), split or merged words ("after a fax" -> "After Effects"), and wrong suffixes.
@@ -83,6 +87,6 @@ Apply the user's answers with `transcript.py accept repeats.json --ids 3 --rejec
 
 `cutlist.py build --words cam.fixed.json --media cam.mp4 --preset <p> --remove repeats.json -o cam.cut.json`
 
-Pauses are found in the **audio** (`silencedetect`, threshold set from the file's own loudness) and confirmed with the words: Whisper's word ends often run into the following pause, which is why word-only cutting leaves pauses half-cut. Audio regions with no words (coughs, clicks, background noise) are dropped too. The result line says `mode=audio+words`; `mode=words only` means ffmpeg could not analyse the audio - tell the user.
+Pauses are found in the **audio** (threshold = the speaker's own level inside the words minus 10 dB, `--rel-db`) and confirmed with the words: Whisper's word ends often run into the following pause, which is why word-only cutting leaves pauses half-cut. Audio regions with no words (coughs, clicks, background noise) are dropped too. The result line says `mode=audio+words`; `mode=words only` means ffmpeg could not analyse the audio (tell the user) or the audio has no pauses below the threshold.
 
-If the user says a cut clips words or sounds rushed, raise `--pad-after` (e.g. 0.12) or use a looser preset; if pauses remain, lower `--noise-db` sensitivity is the wrong way - raise it (e.g. from -40 to -35) so quieter room noise counts as silence.
+If the user says a cut clips words or sounds rushed, raise `--pad-after` (e.g. 0.12) or use a looser preset; if pauses remain, raise the threshold (`--rel-db -8`, or a fixed `--noise-db -35`) so quieter room noise counts as silence.

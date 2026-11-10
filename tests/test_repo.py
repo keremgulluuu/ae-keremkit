@@ -29,11 +29,14 @@ TOOLS = (
     "transcript.py",
     "cutlist.py",
     "subtitles.py",
+    "editplan.py",
     "audio.py",
+    "sfx.py",
     "qc.py",
     "techniques.py",
     "tokens.py",
     "presets.py",
+    "videoref.py",
     "digest.py",
 )
 ASSET_FILES = ("techniques.json",)

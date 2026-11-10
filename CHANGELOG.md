@@ -2,15 +2,36 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] - 2026-11-10
 
 ### Added
+- `editplan.py`: edits written as shots on word indices (`edit.json`), checked against rhythm rules (shot length, per-kind limits, no two host shots in a row, no repeated clip seconds, keys per sentence) with frame-exact times for the build.
+- `transcript.py words` (every word with its index) and index-based corrections (`{"index": 28, "new": "Grok"}`).
+- `videoref.py`: a reference video becomes a small package - shots, motion windows, colours, audio onsets and time-stamped contact sheets (dense where the picture moves) - so Claude can learn or recreate a style for a few thousand tokens. Standard library + ffmpeg.
+- `sfx.py`: licence-free synthesised whoosh, impact, pop, tick, click, glitch, flash, riser and typing sounds, normalised to the same peak.
+- Techniques: cut on the word, human editorial rhythm, one clip for many moments, glass frame, blurred ambient backlight, moving perspective grid, keyword flip, flicker-in emphasis, bleach flash, negative flick, strobe, burn-out frames, film grain, typewriter / giant-word / photo-card pages.
+- `keremkit.py reindex` rebuilds the catalog from the meta files.
+- References: edit plans, learning from reference videos; AE speed tips; logo-rights rules.
 - Repository consistency tests (`tests/test_repo.py`): plugin metadata, `SKILL.md` frontmatter, reference links, docs links, examples, changelog/version agreement, Python 3.9 syntax, standard-library-only imports and the claude.ai zip.
 - `requirements-dev.txt` and pytest configuration in `pyproject.toml`.
 - CI: manual runs, pip cache, concurrency, Ubuntu ffmpeg, build artifact upload and a tag/version check before release.
 
+### Changed
+- Silence detection is relative to the speaker: the median level inside Whisper's words minus 10 dB (`--rel-db`), instead of a fixed offset from the file's average loudness. Pure Python envelope, no extra dependencies. Cut fades are 8 ms.
+
 ### Fixed
+- Subtitle plan zones without a cut list ended at twice the placement start (`at` was added twice).
+- `cutlist.py cut/add/restore` with reversed, negative or out-of-range values now stop with an error instead of a silent "OK".
+- `keremkit.py pref set` into a parent that is `null` (e.g. `subtitles.look.font`) crashed; parents are created.
+- `keremkit.py add` on a missing or broken file printed a traceback; it now prints one error line.
+- Catalogs with missing columns (`search`, `category`, `type`) crashed search and summary; missing columns are filled in.
+- `transcript.py review --cutlist` used the first word's middle as the sentence time and dropped sentences that started before `--from`; it now uses the sentence's start and end.
+- `keremkit.py unpack` trusted folder paths in a package's manifest and could write outside the KeremKit folder; such packages are rejected. `pack` refuses catalog rows that point outside the folder.
+- Whisper output without word timestamps gave a misleading "check cut list" error in `subtitles.py`; words are now spread over each segment with a warning, like `cutlist.py`.
+- Audio-only renders to `.m4a` failed (PCM in an MP4 container); AAC is used.
+- `digest.py` printed `None` for missing comp fields; `presets.py` crashed on a `meta.json` without an id; `audio.py analyze` mis-reported silent files; renders fall back to `-vsync` on ffmpeg before 5.1.
 - `tools/build_skill.py` writes POSIX paths inside the zip, so builds made on Windows are portable.
+- Unused code removed (`tokens.py`, `subtitles.py`, `tools/make_art.py`, a test import).
 
 ## [1.3.0] - 2026-11-09
 

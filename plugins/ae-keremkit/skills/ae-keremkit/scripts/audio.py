@@ -60,6 +60,10 @@ def cmd_analyze(a):
     m = measure(a.file)
     nf = noise_floor(a.file)
     i, tpk, lra = float(m["input_i"]), float(m["input_tp"]), float(m["input_lra"])
+    if i == float("-inf") or i < -70:
+        print("LUFS=silent TRUE_PEAK=-inf LRA=0.0 NOISE_FLOOR=?")
+        print("ADVICE the file is silent - check that the right audio track was used")
+        return
     nf_txt = f"{nf:.1f}dB" if nf is not None else "?"
     print(f"LUFS={i:.1f} TRUE_PEAK={tpk:.1f}dBTP LRA={lra:.1f} NOISE_FLOOR={nf_txt}")
     advice = []

@@ -23,6 +23,8 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 - **Subtitles with real rules.** Words per line, lines per cue, sentence-aware splitting, what to do with a leftover word, highlighted keywords and numbers, different positions for different parts of the video. One text layer in AE reads a data file, so changing a rule never touches your timeline.
 - **A design library.** Save a counter, a title, a transition; place it later by name in English or your own language, with its parameters (*"gold counter, 0 to 25,000, at 2 seconds"*).
 - **Learns your presets.** Point it at your `.ffx` folder. Every preset becomes a card with its effects, keyframes and expressions, and the ones that need third-party plugins are marked. Ask "which presets use Deep Glow?" and get a real answer.
+- **Edit plans on words.** For voice-led edits, the edit is written as shots that start on spoken words, checked for rhythm (shot lengths, repeated clips, two talking shots in a row) and turned into frame-exact times. Changing a cut is one number.
+- **Learn from a reference video.** A finished video becomes a small package — shots, motion, colours, audio hits and time-stamped contact sheets — so Claude can pick up its style for a few thousand tokens.
 - **Copy a look.** Point at a screenshot, a web page, CSS, an SVG, a Lottie file or a project. Its palette, type, radii, glows and easing become tokens you confirm, then an After Effects theme.
 - **Techniques on tap.** Ask "what can you do with the sound?" or "add some cuts" and get the options by name — loudness normalization, noise reduction, ducking, J-cut, L-cut, jump-cut zoom and more — with a one-line explanation each. Add your own techniques the same way.
 - **Clean, organised projects.** Layers are named, ordered and colour-labelled after every edit (your rules), a quality check runs before the final render, and one edit becomes 16:9, 9:16 and 1:1 versions.
@@ -110,10 +112,12 @@ Talk to Claude normally, in any language. Some things you can say:
 | *Add jump-cut zoom and an L-cut into the screen recording.* | Zoom data + one expression; audio tail extended past the cut |
 | *Make a vertical version too.* | Comp duplicated, resized, subtitles and UI moved into the 9:16 safe area |
 | *Save this whole project to the library.* | Project template with its footage, swappable inputs marked |
+| *Learn the style of `reference.mp4`.* | Reference package built, rhythm/look/motion read, a style drafted for you to confirm |
+| *I have no sound effects.* | Licence-free whoosh, impact, pop, tick and more synthesised into the project |
 | *Check it.* | Numeric checks first; one small frame only if needed |
 | *What did you learn from this edit? Save it to the style.* | Style updated; old version archived if you asked for that |
 
-More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [subtitles and cutting](docs/subtitles-and-cutting.md) · [copying a look](docs/design-import.md) · [presets](docs/presets.md) · [techniques](docs/techniques.md) · [FAQ](docs/faq.md)
+More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [subtitles and cutting](docs/subtitles-and-cutting.md) · [copying a look](docs/design-import.md) · [presets](docs/presets.md) · [techniques](docs/techniques.md) · [reference videos](docs/reference-videos.md) · [FAQ](docs/faq.md)
 
 ## Tips
 
@@ -136,8 +140,8 @@ plugins/ae-keremkit/
   skills/ae-keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
-    scripts/                           transcript, cutlist, subtitles, audio, qc, techniques,
-                                       tokens, presets, keremkit, digest
+    scripts/                           transcript, cutlist, subtitles, editplan, audio, sfx, qc,
+                                       techniques, tokens, presets, videoref, keremkit, digest
     assets/                            example style, tokens and library metadata
 docs/                                  user documentation
 examples/                              sample style, plan and subtitle rules

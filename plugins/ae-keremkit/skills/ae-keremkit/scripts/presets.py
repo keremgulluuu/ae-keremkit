@@ -250,8 +250,11 @@ def existing_ids(home):
     base = os.path.join(home, "library", "items", CATEGORY)
     if os.path.isdir(base):
         for d in os.listdir(base):
-            m = rjson(os.path.join(base, d, "meta.json"))
-            if m:
+            try:
+                m = rjson(os.path.join(base, d, "meta.json"))
+            except ValueError:
+                m = None
+            if m and re.fullmatch(rf"{PREFIX}-\d+", str(m.get("id", ""))):
                 known[m.get("source_path")] = (m["id"], d)
                 top = max(top, int(m["id"].split("-")[1]))
     return known, top

@@ -73,7 +73,7 @@ def css_blocks(text):
     text = DATA_URI.sub("url(DATA)", text)
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
     out = []
-    depth, start, sel_stack = 0, 0, []
+    sel_stack = []
     buf = ""
     i = 0
     while i < len(text):

@@ -58,6 +58,13 @@ New comps: `standards.default_comp[<format>]` = [width, height, fps]. One frame 
 
 `render.mode`: `auto` (start when the edit is verified), `ask` (ask first), `queue` (add to queue, user starts). `render.format`: the user's words (e.g. "MP4 H.264", "ProRes 422 HQ"); map to an AE output-module template from `render.list_templates` - if none fits, say so and suggest `render.queue_in_ame`. Output path: `render.output_folder` (ask once if null) + `render.naming`. Report the file path and duration when done; check `render.status` sparingly (not in a tight loop).
 
+## After Effects speed
+
+- Creating a text layer is slow (about 1-2 s each in recent AE). Build one styled text layer per caption/title style, then `layer.duplicate` it and change only the text and timing.
+- Close heavy comps in the viewer before big batches (`timeline.set_active_comp` on a small comp); the viewer re-rendering slows every operation.
+- Prefer one data-driven layer (subtitles, zoom) over hundreds of keyed layers.
+- Expressions that read JSON are evaluated per frame: keep data files compact (as the tools write them) and avoid nesting such layers in many precomps.
+
 ## Checkpoints
 
 `<Project>_v001.aep`, `_v002`... next to the project; if the name already ends in `_vNNN`, increment it. Claude never deletes checkpoints.

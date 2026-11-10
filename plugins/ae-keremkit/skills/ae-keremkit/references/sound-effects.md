@@ -24,7 +24,7 @@ Global limits (preferences): `level_db` default level, `min_gap_s` (no two SFX c
 
 1. Collect the events from the timeline plan / what was placed (transition times, UI in-points, highlight times from `subs.json`).
 2. Apply the rules, then the limits (drop the weakest when too dense; prefer structural events - transitions, interstitials - over decorative ones).
-3. Find files: list the SFX folder once per session (names only) and match by stem; if a rule's sound is missing, say so in one line and skip it (never invent a file).
+3. Find files: list the SFX folder once per session (names only) and match by stem. No folder, or a sound is missing: offer to synthesise basic ones - `sfx.py make whoosh impact pop tick click glitch flash riser typing -o <project>/_keremkit/sfx [--variants 3]` (licence-free, every file peaks at -3 dBFS, so set levels in AE). Never invent a file that does not exist.
 4. AE, one batch: `project.import_file` each needed file once (put them in an `04_SES/SFX` folder), `layer.create_footage` per event named `SFX_<Event>_<nn>`, `layer.set_timing` (start = event time + `offset_s`), Audio Levels via `property.set` (`level_db`).
 5. Verify with `comp.info` (count, times). Report one line: how many SFX, which kinds.
 

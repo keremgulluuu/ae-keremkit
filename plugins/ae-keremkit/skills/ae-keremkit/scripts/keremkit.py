@@ -17,6 +17,7 @@ bookkeeping on the user's computer and prints only short results.
   add      META_OR_STYLE.json             add/update a catalog row (library item or style)
   style-archive SLUG --reason "..."       snapshot styles/SLUG/style.json into the archive
   validate                                check catalog rows point at real files
+  reindex                                 rebuild CATALOG.tsv from all meta.json / style.json files
   doctor                                  check Python, ffmpeg, Whisper, home folder, tool versions
   pack   [--items ID ...] [--styles SLUG ...] [--all] -o share.zip   package styles/items to share
   unpack share.zip                        import a package (ids renumbered on clashes; fonts/plugins listed)
@@ -29,6 +30,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import unicodedata
 from datetime import date
@@ -230,8 +232,8 @@ def cmd_init(a):
     print(f"OK home={h} pointer={POINTER}")
 
 
-TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "audio.py", "qc.py", "techniques.py",
-         "tokens.py", "presets.py", "digest.py", "techniques.json")
+TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "editplan.py", "audio.py", "sfx.py", "qc.py",
+         "techniques.py", "tokens.py", "presets.py", "videoref.py", "digest.py", "techniques.json")
 
 LEARNING_FILES = {
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"
@@ -285,7 +287,9 @@ def cmd_pref(a):
             node = prefs
             parts = k.split(".")
             for p in parts[:-1]:
-                node = node.setdefault(p, {})
+                if not isinstance(node.get(p), dict):
+                    node[p] = {}              # create (or replace a null) parent on the way down
+                node = node[p]
             node[parts[-1]] = val
             print(f"OK {k}={json.dumps(val, ensure_ascii=False)}")
         wjson(prefs_path(h), prefs)
@@ -352,7 +356,12 @@ def migrate_row(r):
     if "name" not in r:
         r["name"] = r.pop("name_en", "") or r.get("name_tr", "")
         r["local_name"] = r.pop("name_tr", "")
-    r.setdefault("local_name", "")
+    for c in CATALOG_COLS:                       # hand-edited catalogs may miss columns
+        r.setdefault(c, "")
+    if not r["type"]:
+        r["type"] = "style" if r["category"] == "edit-style" or r["id"].startswith("STY-") else "item"
+    if not r["search"]:
+        r["search"] = norm(" ".join([r["id"], r["name"], r["local_name"], r["category"], r["summary"]]))
     return r
 
 
@@ -424,7 +433,14 @@ def cmd_new_id(a):
 
 def cmd_add(a):
     h = need_home(home_dir(a.home))
-    meta = rjson(a.file)
+    if not os.path.isfile(a.file):
+        sys.exit(f"ERROR: file not found: {a.file}")
+    try:
+        meta = rjson(a.file)
+    except ValueError as e:
+        sys.exit(f"ERROR: {a.file} is not valid JSON: {e}")
+    if not isinstance(meta, dict):
+        sys.exit(f"ERROR: {a.file} must contain a JSON object")
     is_style = meta.get("kind") == "edit-style" or os.path.basename(a.file) == "style.json"
     name, local = meta_names(meta)
     need = ["id"] + ([] if is_style else ["category", "tags", "summary"])
@@ -468,6 +484,31 @@ def cmd_style_archive(a):
     st.setdefault("changelog", []).append({"version": v + 1, "date": date.today().isoformat(), "change": a.reason})
     wjson(cur, st)
     print(f"OK archived v{v:03d} -> now v{v + 1:03d} ({dst})")
+
+
+def cmd_reindex(a):
+    """Rebuild CATALOG.tsv from every meta.json / style.json on disk."""
+    h = need_home(home_dir(a.home))
+    keep_paths = []
+    for base, dirs, files in os.walk(os.path.join(h, "library", "items")):
+        if "meta.json" in files:
+            keep_paths.append(os.path.join(base, "meta.json"))
+            dirs[:] = []
+    for base, dirs, files in os.walk(os.path.join(h, "styles")):
+        dirs[:] = [d for d in dirs if d != "_archive"]
+        if "style.json" in files:
+            keep_paths.append(os.path.join(base, "style.json"))
+    write_catalog(h, [])
+    ok = bad = 0
+    for p in sorted(keep_paths):
+        r = subprocess.run([sys.executable, os.path.abspath(__file__), "--home", h, "add", p],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            ok += 1
+        else:
+            bad += 1
+            print(f"SKIPPED\t{os.path.relpath(p, h)}\t{(r.stderr or r.stdout).strip().splitlines()[-1]}")
+    print(f"OK reindexed={ok} skipped={bad}")
 
 
 def cmd_validate(a):
@@ -558,6 +599,17 @@ def cmd_doctor(a):
     print("NOTE\tAfter Effects: Claude checks the MCP connection with ae_context")
 
 
+def inside(home, rel):
+    """True when rel (a catalog/manifest folder) stays inside home."""
+    if not rel or os.path.isabs(rel) or re.match(r"^[A-Za-z]:", rel) or ".." in rel.replace("\\", "/").split("/"):
+        return False
+    full = os.path.realpath(os.path.join(home, rel))
+    return os.path.commonpath([full, os.path.realpath(home)]) == os.path.realpath(home)
+
+
+ID_RE = re.compile(r"^[A-Z0-9]{2,4}-\d{3,}$")
+
+
 def safe_members(z):
     for m in z.namelist():
         if m.startswith("/") or ".." in m.replace("\\", "/").split("/"):
@@ -575,6 +627,9 @@ def cmd_pack(a):
         want = {r["id"] for r in rows if r["type"] == "item"}
         styles = {os.path.basename(r["folder"]) for r in rows if r["type"] == "style"}
     picked = [r for r in rows if r["id"] in want] + [r for r in rows if r["type"] == "style" and os.path.basename(r["folder"]) in styles]
+    outside = [r["id"] for r in picked if not inside(h, r["folder"])]
+    if outside:
+        sys.exit(f"ERROR: catalog rows point outside the KeremKit folder: {outside[:5]}")
     if not picked:
         sys.exit("ERROR: nothing selected (use --items, --styles or --all)")
     fonts, plugins = set(), set()
@@ -606,6 +661,11 @@ def cmd_unpack(a):
     with zipfile.ZipFile(a.file) as z:
         safe_members(z)
         man = json.loads(z.read("manifest.json"))
+        bad = [r.get("folder") for r in man.get("rows", [])
+               if not inside(h, str(r.get("folder", ""))) or not str(r.get("folder", "")).replace("\\", "/").startswith(("library/", "styles/"))
+               or not ID_RE.match(str(r.get("id", "")))]
+        if bad:
+            sys.exit(f"ERROR: package rejected - unsafe or invalid entries in manifest.json: {bad[:3]}")
         rows = read_catalog(h)
         have = {r["id"]: r for r in rows}
         cats = categories(h)
@@ -689,6 +749,7 @@ def main():
     sa.add_argument("slug")
     sa.add_argument("--reason", required=True)
     sp.add_parser("validate")
+    sp.add_parser("reindex")
     sp.add_parser("doctor")
     pk = sp.add_parser("pack")
     pk.add_argument("--items", nargs="*")
@@ -704,7 +765,7 @@ def main():
         ap.error("cat add needs --key --prefix --name")
     {"where": cmd_where, "init": cmd_init, "pref": cmd_pref, "cat": cmd_cat, "search": cmd_search,
      "new-id": cmd_new_id, "add": cmd_add, "style-archive": cmd_style_archive,
-     "validate": cmd_validate, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
+     "validate": cmd_validate, "reindex": cmd_reindex, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
      "unpack": cmd_unpack}[a.cmd](a)
 
 

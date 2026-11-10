@@ -93,7 +93,10 @@ def main():
     walk(data, acc)
     print(f"COMPS {len(acc['comps'])}")
     for c in sorted(acc["comps"], key=lambda c: -(c["layers"] or 0))[:12]:
-        print(f"  {c['name']}\t{c['w']}x{c['h']}\t{c['fps']}fps\t{c['dur']}s\t{c['layers']} layers")
+        size = f"{c['w']}x{c['h']}" if c["w"] and c["h"] else "size ?"
+        fps = f"{c['fps']}fps" if c["fps"] else "fps ?"
+        dur = f"{c['dur']}s" if c["dur"] is not None else "duration ?"
+        print(f"  {c['name']}\t{size}\t{fps}\t{dur}\t{c['layers']} layers")
     def top(cnt, n=10):
         return ", ".join(f"{k}({v})" for k, v in cnt.most_common(n)) or "-"
     print(f"LAYER_PREFIXES {top(acc['prefix'])}")

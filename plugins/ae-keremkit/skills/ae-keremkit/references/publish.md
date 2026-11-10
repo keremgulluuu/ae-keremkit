@@ -19,6 +19,10 @@ From the corrected transcript: 3-5 title options (under ~60 characters, the main
 
 `qc.py thumbs <render> -n 6 -o _keremkit/thumbs` writes sharp, representative frames spread over the video. Give the user the folder; don't open the images yourself unless asked (`verification.md`). If they pick one, it can be used in a thumbnail design (`design-import.md` / library).
 
+## Logos and brand marks
+
+Use a logo only when that name is actually said or shown in the video, and get the user's OK for the list first. Prefer the official press kit or Wikimedia Commons (its `Special:FilePath/<file>.svg?width=512` gives a PNG render); note file, source page and licence in `<project>/assets/logos/SOURCES.md`. Never recolour or alter a logo beyond a single-colour version for dark backgrounds.
+
 ## Finishing in another editor
 
 `cutlist.py export cam.cut.json --format edl -o cam.edl` (Premiere Pro, DaVinci Resolve, Avid) or `--format fcpxml -o cam.fcpxml` (Final Cut Pro, Resolve). One event per kept segment, pointing at the original recording; subtitles go along as `subs.srt`.

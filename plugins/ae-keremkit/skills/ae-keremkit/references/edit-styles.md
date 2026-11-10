@@ -17,6 +17,7 @@ Styles live in `KeremKit/styles/<slug>/style.json` and are listed in the catalog
 | `screen_recording` | When it appears (e.g. over the voice part), how (frame, scale, corner radius, shadow, in/out motion - or a library item), sync rules |
 | `sfx` | Style-level SFX rules (see `sound-effects.md`) |
 | `render` | Overrides of render preferences |
+| `editing` | Rhythm rules for edit plans (`edit-plan.md`): shot length range, per-kind limits, kinds that must not follow each other, keys per sentence |
 | `rules` | Any other rule, one sentence each |
 | `changelog` | Version history; `version` |
 
@@ -33,11 +34,12 @@ Styles live in `KeremKit/styles/<slug>/style.json` and are listed in the catalog
 5. **Run the pipeline** (checkpoint first):
    1. Transcribe each spoken input with Whisper (word timestamps) - see `subtitles.md` -> Transcribe. Keep the compact transcript text (`subtitles.py` is not needed for this; Whisper's `.txt`/`.json`).
    2. Build a cut list per spoken input (`cutting.md`) with the style's preset; render the cut files.
-   3. **Plan the timeline** from the `structure` rules: find the split points by reading the compact transcript (text with times) and matching the style's `split_cues` *pattern* (meaning, not exact words). Convert source times to cut times with `cutlist.py map`. Write `plan.json` (placements: role, file, from, to, at, zone) - this is also the subtitle plan. If a split point is ambiguous, show the 2-3 candidates in one line each and ask.
-   4. Build subtitles from the plan (`subtitles.md`); positions per zone from the style.
-   5. Assemble in AE in as few batches as possible: comp per format (`SCN_`), import cut files, place layers per plan, screen recording per style, subtitle layer (data-driven), UI/transitions/interstitials from the library (`library-use.md`), SFX (`sound-effects.md`).
-   6. Numeric verification (structure, timing vs plan, safe areas, missing fonts/footage).
-   7. Render according to `render.mode` (ask/auto/queue).
+   3. For voice-led styles with many shots, write and check an edit plan (`edit-plan.md`) before building.
+   4. **Plan the timeline** from the `structure` rules: find the split points by reading the compact transcript (text with times) and matching the style's `split_cues` *pattern* (meaning, not exact words). Convert source times to cut times with `cutlist.py map`. Write `plan.json` (placements: role, file, from, to, at, zone) - this is also the subtitle plan. If a split point is ambiguous, show the 2-3 candidates in one line each and ask.
+   5. Build subtitles from the plan (`subtitles.md`); positions per zone from the style.
+   6. Assemble in AE in as few batches as possible: comp per format (`SCN_`), import cut files, place layers per plan, screen recording per style, subtitle layer (data-driven), UI/transitions/interstitials from the library (`library-use.md`), SFX (`sound-effects.md`).
+   7. Numeric verification (structure, timing vs plan, safe areas, missing fonts/footage).
+   8. Render according to `render.mode` (ask/auto/queue).
 6. **Report** in 2-4 lines: duration, what was placed, anything that needed a judgement call.
 7. **Learning question** (below).
 
@@ -47,6 +49,7 @@ Three ways - all end with a draft shown to the user for confirmation, then `kere
 
 - **By conversation:** walk the sections in the table above, asking only for what the user has not already said, a few questions at a time. Accept "sen karar ver" and record the choice made.
 - **From the current chat:** if the user just edited a video here, extract the decisions and corrections they made in this conversation.
+- **From a reference video:** `video-reference.md` - rhythm, look and motion measured from the video, then confirmed with the user.
 - **From a finished project:** `ae_project_export_json(outPath=...)` -> `digest.py <file> [--comp SCN_...]` -> draft style from the digest (fonts, palette, layer roles, effects, comp formats) -> ask about what a project cannot show (cut tightness, split cues, SFX intent).
 
 Names: English `name` (e.g. "Kerem Style"), local names in `names` (e.g. `{"tr": "Kerem Stili"}`), `aliases` for how the user refers to it; slug = ASCII of the name.

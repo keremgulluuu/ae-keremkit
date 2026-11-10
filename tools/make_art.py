@@ -97,12 +97,6 @@ def text(x, y, content, size, weight=400, fill=INK, ls=None, anchor="start", cls
             f'{ls_attr} text-anchor="{anchor}">{content}</text>')
 
 
-def contact_line(x, y, left, right):
-    return (f'<text class="s" x="{x}" y="{y}" font-size="13" font-weight="700" fill="{INK}" fill-opacity=".66" '
-            f'letter-spacing="-.16">{left}<tspan fill="{LIME}" fill-opacity=".75" dx="9">/</tspan>'
-            f'<tspan dx="9">{right}</tspan></text>')
-
-
 # ------------------------------------------------------------------ banner
 def banner():
     w, h = 1280, 480

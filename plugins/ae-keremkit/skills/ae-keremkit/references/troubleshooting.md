@@ -34,6 +34,9 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 | Cut file out of sync in AE | the source was variable-frame-rate: re-render (cutlist renders CFR) and `footage.reload` |
 | Subtitle layer shows nothing | `footage("<name>")` must equal the imported item name exactly; time beyond last cue shows empty by design |
 | `keremkit.py` says NOT_SET_UP | run `keremkit.py init` (setup.md) |
+| Catalog search finds nothing / catalog was edited by hand | `keremkit.py reindex` rebuilds it from the meta files |
+| `ERROR: package rejected` on unpack | the package's manifest points outside the KeremKit folder - don't import it; ask where it came from |
+| Whisper JSON without word times | subtitles fall back to even timing per segment (a WARN says so); re-run Whisper with word timestamps |
 
 ## Learned in real use (After Effects MCP)
 

@@ -4,9 +4,11 @@
   review   W.json [--min-prob 0.6] [--from S] [--to S] [--cutlist C.json [--at S]]
            compact transcript, one utterance per line ("mm:ss.s | text"), doubtful words
            marked as word(?0.42). This is what Claude reads to spot mis-heard words.
+  words    W.json [--cutlist C.json [--at S]]
+           every word with its index ("12:Claude"), one utterance per line - anchors for fixes and edit plans
   fix      W.json --corrections C.json -o W.fixed.json
            apply word corrections, anchored by time and the old text, keeping timestamps.
-           C.json: [{"time": 12.4, "old": "Kılavd", "new": "Claude"}, ...]
+           C.json: [{"time": 12.4, "old": "Kılavd", "new": "Claude"}, {"index": 28, "new": "Grok"}, ...]
            old/new may be several words ("after a fax" -> "After Effects").
   repeats  W.json [--window 15] [--pause 0.45] -o repeats.json
            find retakes and false starts (a phrase said again shortly after), stutters
@@ -88,6 +90,31 @@ def to_out(cut, t):
     return None
 
 
+def cmd_words(a):
+    """Every word with its index - cheap anchors for corrections and edit plans."""
+    data = load(a.words)
+    ws = words_of(data)
+    cut = load(a.cutlist) if a.cutlist else None
+    shown = 0
+    for g in utterances(ws, a.pause):
+        items, t0 = [], None
+        for i in g:
+            w = ws[i]
+            if cut:
+                o = to_out(cut, (w.get("start", 0) + w.get("end", 0)) / 2)
+                if o is None:
+                    continue
+                t = o + a.at
+            else:
+                t = w.get("start", 0)
+            t0 = t if t0 is None else t0
+            items.append(f"{i}:{text_of(w)}")
+        if items:
+            print(f"{mmss(t0)} | {' '.join(items)}")
+            shown += len(items)
+    print(f"-- words={len(ws)} shown={shown}" + (" (cut parts hidden, timeline times)" if cut else ""))
+
+
 def cmd_review(a):
     data = load(a.words)
     ws = words_of(data)
@@ -97,13 +124,17 @@ def cmd_review(a):
         s, e = ws[g[0]].get("start", 0), ws[g[-1]].get("end", 0)
         if cut:
             # show output (timeline) times; utterances that were cut out are skipped
-            outs = [to_out(cut, (ws[i].get("start", 0) + ws[i].get("end", 0)) / 2) for i in g]
-            kept = [i for i, o in zip(g, outs) if o is not None]
+            mids = [to_out(cut, (ws[i].get("start", 0) + ws[i].get("end", 0)) / 2) for i in g]
+            kept = [i for i, o in zip(g, mids) if o is not None]
             if not kept:
                 continue
             g = kept
-            s = next(o for o in outs if o is not None) + a.at
-            e = s
+            # sentence start = start of its first kept word, end = end of its last kept word (timeline time)
+            first, last = ws[g[0]], ws[g[-1]]
+            s = to_out(cut, first.get("start", 0))
+            s = (s if s is not None else to_out(cut, (first.get("start", 0) + first.get("end", 0)) / 2)) + a.at
+            e = to_out(cut, last.get("end", 0))
+            e = (e if e is not None else to_out(cut, (last.get("start", 0) + last.get("end", 0)) / 2)) + a.at
         if (a.frm is not None and e < a.frm) or (a.to is not None and s > a.to):
             continue
         parts = []
@@ -127,7 +158,33 @@ def cmd_fix(a):
     corr = load(a.corrections)
     corr = corr.get("corrections", corr) if isinstance(corr, dict) else corr
     applied, missed = [], []
+    # index-based fixes first, from the end so earlier indices stay valid
+    by_index = sorted((c for c in corr if "index" in c), key=lambda c: -int(c["index"]))
+    for c in by_index:
+        i = int(c["index"])
+        if not 0 <= i < len(ws):
+            missed.append({"time": 0, "old": f"#{i}"})
+            continue
+        w = ws[i]
+        lead = " " if (w.get("word") or "").startswith(" ") else ""
+        tail = re.search(r"[.,!?;:…]+$", text_of(w))
+        new = str(c["new"]).split()
+        s0, e0 = w.get("start", 0), w.get("end", 0)
+        items = []
+        for k, nw in enumerate(new):
+            txt = nw + (tail.group(0) if tail and k == len(new) - 1 and not re.search(r"[.,!?;:…]$", nw) else "")
+            item = {"word": (lead if k == 0 else " ") + txt, "start": round(s0 + (e0 - s0) * k / len(new), 3),
+                    "end": round(s0 + (e0 - s0) * (k + 1) / len(new), 3), "probability": 1.0}
+            if k == 0:
+                item["corrected_from"] = text_of(w)
+            items.append(item)
+        old_text = text_of(w)
+        replace_span(data, [w], items)
+        ws = words_of(data)
+        applied.append((s0, f"#{i} {old_text}", " ".join(new)))
     for c in corr:
+        if "index" in c:
+            continue
         old = [fold(x) for x in str(c["old"]).split()]
         new = str(c["new"]).split()
         t = float(c["time"])
@@ -293,6 +350,11 @@ def main():
     r.add_argument("--to", type=float)
     r.add_argument("--cutlist", help="print timeline (output) times and skip what was cut - for chapters")
     r.add_argument("--at", type=float, default=0.0, help="where the cut file starts on the timeline (s)")
+    w = sp.add_parser("words")
+    w.add_argument("words")
+    w.add_argument("--cutlist")
+    w.add_argument("--at", type=float, default=0.0)
+    w.add_argument("--pause", type=float, default=0.6)
     f = sp.add_parser("fix")
     f.add_argument("words")
     f.add_argument("--corrections", required=True)
@@ -308,7 +370,7 @@ def main():
     c.add_argument("--ids")
     c.add_argument("--reject")
     a = ap.parse_args()
-    {"review": cmd_review, "fix": cmd_fix, "repeats": cmd_repeats, "accept": cmd_accept}[a.cmd](a)
+    {"words": cmd_words, "review": cmd_review, "fix": cmd_fix, "repeats": cmd_repeats, "accept": cmd_accept}[a.cmd](a)
 
 
 if __name__ == "__main__":

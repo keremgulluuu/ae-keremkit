@@ -1,6 +1,6 @@
 ---
 name: ae-keremkit
-description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, audio-based silence cutting with retake/repeat removal, transcript correction (asks when unsure), a technique catalogue (J/L cuts, jump-cut zoom, audio clean-up and loudness, multi-format, QC), layer organisation, Whisper subtitles, sound effects, a design library (items and whole projects), copying a look from references, learning .ffx presets, publishing helpers and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles, styles, audio, techniques ("what can you do with the sound?"), saving or reusing designs, presets, formats, QC, render - in any language, even when the kit is not named.
+description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, audio-based silence cutting with retake removal, transcript correction (asks when unsure), edit plans on word indices with rhythm checks, a technique catalogue (J/L cuts, jump-cut zoom, glass frames, flashes, audio clean-up, multi-format, QC), layer organisation, Whisper subtitles, synthesised SFX, a design library (items and projects), copying a look from images, web pages or reference videos, learning .ffx presets, publishing helpers and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles, styles, audio, techniques, designs, presets, reference videos, formats, QC, render - in any language, even when the kit is not named.
 license: MIT
 compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles.
 ---
@@ -28,8 +28,8 @@ KeremKit/
   styles/<slug>/style.json    edit styles;  styles/_archive/<slug>/v###/  previous versions
   learning/house-style.md     the user's general design rules
   learning/known-issues.md    solved problems (search by keyword)
-  tools/                      keremkit.py, transcript.py, cutlist.py, subtitles.py, audio.py, qc.py,
-                              techniques.py, tokens.py, presets.py, digest.py
+  tools/                      keremkit.py, transcript.py, cutlist.py, subtitles.py, editplan.py, audio.py,
+                              sfx.py, qc.py, techniques.py, tokens.py, presets.py, videoref.py, digest.py
 ```
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
@@ -77,6 +77,8 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | The user names an edit style, wants a new one, or an edit just finished | `references/edit-styles.md` |
 | Any spoken recording: transcribe, fix mis-heard words, remove retakes/repeats/fillers | `references/transcript.md` (first), then `references/cutting.md` |
 | Cutting silences, tight cuts, "add/remove time at X s" fixes | `references/cutting.md` |
+| Voice-led edit with many shots: plan shots on words, check rhythm, get frame-exact times | `references/edit-plan.md` |
+| The user gives a reference video to learn from or recreate | `references/video-reference.md` |
 | Subtitles (Whisper, line/word rules, highlights, placement) | `references/subtitles.md` |
 | Sound effects | `references/sound-effects.md` |
 | The user shares a reference (image, HTML, CSS, SVG, Lottie, project) to copy its look | `references/design-import.md` |

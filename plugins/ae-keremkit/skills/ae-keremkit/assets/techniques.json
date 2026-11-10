@@ -7,113 +7,625 @@
     "format": "Formats and deliverables",
     "qc": "Quality control before delivery",
     "organize": "Project and layer organisation",
-    "publish": "Publishing helpers"
+    "publish": "Publishing helpers",
+    "look": "Visual treatments",
+    "pages": "Full-screen pages and title cards"
   },
   "techniques": [
-    {"id": "jump-cut", "group": "cuts", "name": "Jump cut", "aka": ["atlama kesmesi"],
-     "what": "Cut out pauses or mistakes inside one continuous shot; the image jumps slightly.",
-     "when": "Talking-head videos, vlogs, tutorials - keeps pace high.",
-     "auto": true, "how": "transcript.py + cutlist.py build (pauses from audio, retakes removed)"},
-    {"id": "jump-cut-zoom", "group": "cuts", "name": "Jump-cut zoom (punch-in on cuts)", "aka": ["zoom cut", "punch cut"],
-     "what": "Alternate the framing at every jump cut (e.g. 100% / 110%) so the cut reads as a new angle instead of a glitch.",
-     "when": "Any tight-cut talking head. Use 105-115%; keep eyes inside the frame.",
-     "auto": true, "how": "cutlist.py zoom -> one Scale expression reading zoom.json", "params": {"levels": [100, 110], "mode": "alternate"}},
-    {"id": "emphasis-punch-in", "group": "motion", "name": "Emphasis punch-in", "aka": ["vurgu zoomu"],
-     "what": "Quick zoom-in on a key word or line, held until the next cut.",
-     "when": "Punchlines, numbers, the main claim of a sentence.",
-     "auto": true, "how": "cutlist.py zoom --emphasis subs.json (highlighted cues) or chosen times", "params": {"scale": 118, "frames": 3}},
-    {"id": "smooth-push", "group": "motion", "name": "Slow push-in", "aka": ["ken burns", "yavaş zoom"],
-     "what": "Very slow continuous zoom (2-5%) across a shot to add life to static footage or stills.",
-     "when": "Long static shots, photos, B-roll.", "auto": true, "how": "Scale keyframes over the layer's duration (ease in-out)"},
-    {"id": "camera-shake", "group": "motion", "name": "Camera shake / impact", "aka": ["sarsıntı"],
-     "what": "Short positional shake on an impact moment or beat.",
-     "when": "Drops, hits, reveals. Short (4-8 frames) and small.", "auto": true, "how": "Position wiggle expression gated by time, or a learned preset"},
-    {"id": "j-cut", "group": "cuts", "name": "J-cut", "aka": ["audio leads"],
-     "what": "The next shot's audio starts before its picture: we hear B while still seeing A.",
-     "when": "Moving into a new speaker, scene or the voice-over; makes transitions feel natural.",
-     "auto": true, "how": "Extend the incoming audio layer earlier (layer.set_timing inPoint) while the video keeps its cut; typical lead 0.3-1.0 s"},
-    {"id": "l-cut", "group": "cuts", "name": "L-cut", "aka": ["audio lags", "J-cut'ın tersi"],
-     "what": "The previous shot's audio continues over the next picture: we see B while still hearing A.",
-     "when": "Showing a reaction, screen recording or B-roll while the speaker finishes a sentence.",
-     "auto": true, "how": "Extend the outgoing audio layer's outPoint past the video cut; typical tail 0.3-1.5 s"},
-    {"id": "cutaway", "group": "cuts", "name": "Cutaway / B-roll", "aka": ["ara görüntü"],
-     "what": "Cover part of the main shot with related footage while the audio continues.",
-     "when": "Hide jump cuts, illustrate what is said, keep attention.", "auto": false, "how": "Footage layer above the main shot for the covered range"},
-    {"id": "match-cut", "group": "cuts", "name": "Match cut", "aka": ["eşleşme kesmesi"],
-     "what": "Cut between two shots that match in shape, movement or composition.",
-     "when": "Stylish scene changes; needs footage that matches.", "auto": false, "how": "Align the matching moments; comp.sample to compare positions"},
-    {"id": "match-on-action", "group": "cuts", "name": "Cut on action", "aka": ["hareket üzerinde kesme"],
-     "what": "Cut in the middle of a movement so the motion hides the edit.", "when": "Multi-angle or B-roll edits.", "auto": false,
-     "how": "Place the cut 2-4 frames into the movement"},
-    {"id": "smash-cut", "group": "cuts", "name": "Smash cut", "aka": ["sert kesme"],
-     "what": "Abrupt cut from one mood/volume to a very different one for contrast or comedy.", "when": "Jokes, hooks, reveals.",
-     "auto": false, "how": "Hard cut, often with a sudden audio change"},
-    {"id": "whip-transition", "group": "cuts", "name": "Whip / swish transition", "aka": ["hızlı kaydırma geçişi"],
-     "what": "Fast directional motion blur carrying one shot into the next.", "when": "Energetic changes between scenes.",
-     "auto": true, "how": "Library transition or preset; motion blur on; 6-10 frames"},
-    {"id": "speed-ramp", "group": "cuts", "name": "Speed ramp", "aka": ["hız rampası"],
-     "what": "Change playback speed smoothly within a shot (fast -> slow -> fast).", "when": "Action, reveals, beat hits.",
-     "auto": false, "how": "Time remapping keyframes with eased velocity; needs footage shot at a higher frame rate for slow parts"},
-    {"id": "montage", "group": "cuts", "name": "Montage / rhythm cut", "aka": ["ritim kurgusu"],
-     "what": "Sequence of short shots cut to the music's beat.", "when": "Intros, recaps, highlights.", "auto": false,
-     "how": "Cut points on beats; markers from the music"},
-
-    {"id": "loudness-normalize", "group": "audio", "name": "Loudness normalization", "aka": ["ses seviyesi eşitleme", "LUFS"],
-     "what": "Bring the whole mix to a target loudness so it matches the platform (YouTube/Spotify -14 LUFS, broadcast -23).",
-     "when": "Every delivery.", "auto": true, "how": "audio.py process --chain loudnorm (two-pass)", "params": {"target_lufs": -14, "true_peak": -1}},
-    {"id": "noise-reduction", "group": "audio", "name": "Noise reduction", "aka": ["gürültü azaltma", "denoise"],
-     "what": "Reduce steady background hiss, hum or room noise.", "when": "Home recordings, fans, AC hum. Too much makes voices robotic.",
-     "auto": true, "how": "audio.py process --chain denoise (FFT denoiser, gentle by default)"},
-    {"id": "high-pass", "group": "audio", "name": "High-pass filter", "aka": ["low cut", "alçak frekans kesme"],
-     "what": "Remove rumble below ~80 Hz (desk bumps, traffic, handling noise).", "when": "Almost every voice recording.",
-     "auto": true, "how": "audio.py process --chain highpass"},
-    {"id": "de-esser", "group": "audio", "name": "De-esser", "aka": ["s sesi yumuşatma"],
-     "what": "Tame harsh 's' and 'ş' sounds.", "when": "Bright microphones, close speech.", "auto": true, "how": "audio.py process --chain deess"},
-    {"id": "compression", "group": "audio", "name": "Voice compression", "aka": ["kompresör", "dinamik kontrol"],
-     "what": "Even out loud and quiet parts of speech so every word is clear.", "when": "Talking heads, voice-overs.",
-     "auto": true, "how": "audio.py process --chain compress"},
-    {"id": "eq-presence", "group": "audio", "name": "Presence EQ", "aka": ["netlik EQ"],
-     "what": "Small boost around 3-5 kHz and a cut of muddiness around 250-400 Hz for clearer speech.", "when": "Dull or muddy voices.",
-     "auto": true, "how": "audio.py process --chain eq"},
-    {"id": "ducking", "group": "audio", "name": "Music ducking", "aka": ["müziği konuşmada kısma", "sidechain"],
-     "what": "Music drops automatically while someone speaks and comes back in the gaps.", "when": "Any video with music under speech.",
-     "auto": true, "how": "audio.py duck voice music (sidechain compression) or Audio Levels keyframes from the cut list's speech regions",
-     "params": {"duck_db": -12}},
-    {"id": "room-tone", "group": "audio", "name": "Room tone fill", "aka": ["ortam sesi doldurma"],
-     "what": "Fill dead-silent gaps with the room's own quiet sound so cuts don't feel like holes.", "when": "Tight cuts with very clean silence.",
-     "auto": false, "how": "Loop a quiet room-tone clip under the voice track"},
-    {"id": "crossfades", "group": "audio", "name": "Micro crossfades", "aka": ["tık önleme"],
-     "what": "A few milliseconds of fade at every audio cut to avoid clicks.", "when": "Always on cuts.", "auto": true,
-     "how": "Built into cutlist.py render (5 ms)"},
-    {"id": "breath-control", "group": "audio", "name": "Breath reduction", "aka": ["nefes azaltma"],
-     "what": "Lower (not remove) loud breaths between sentences.", "when": "Close-mic voice-overs.", "auto": false,
-     "how": "Keep breaths with a larger pad-after, then lower their level; removing them entirely sounds unnatural"},
-
-    {"id": "multi-format", "group": "format", "name": "Multi-format delivery (reframe)", "aka": ["çoklu format", "16:9 9:16 1:1"],
-     "what": "Make 16:9, 9:16 and 1:1 versions from one edit: duplicate the comp, resize, re-place subtitles and UI in each format's safe area.",
-     "when": "Publishing to YouTube + Shorts/Reels/TikTok.", "auto": true, "how": "references/formats.md"},
-
-    {"id": "pre-render-qc", "group": "qc", "name": "Pre-render quality check", "aka": ["render öncesi kontrol"],
-     "what": "Check missing fonts/footage, safe areas, text spelling, audio peaks and black/frozen frames before delivering.",
-     "when": "Before every final render.", "auto": true, "how": "references/qc.md + qc.py on the render"},
-
-    {"id": "layer-organize", "group": "organize", "name": "Layer order, naming and colour labels", "aka": ["katman düzeni", "etiket renkleri"],
-     "what": "Sort layers by role, name them with standard prefixes and give each role its own label colour.",
-     "when": "After every edit (automatic unless turned off).", "auto": true, "how": "references/organize.md"},
-    {"id": "project-log", "group": "organize", "name": "Project log", "aka": ["proje günlüğü"],
-     "what": "A short running log in the project's _keremkit folder so work can continue in a new chat.",
-     "when": "Every project.", "auto": true, "how": "SKILL.md -> Project log"},
-
-    {"id": "chapters", "group": "publish", "name": "YouTube chapters", "aka": ["bölümler"],
-     "what": "Chapter list with output times from the corrected transcript.", "when": "Videos over ~3 minutes.",
-     "auto": true, "how": "references/publish.md"},
-    {"id": "titles-descriptions", "group": "publish", "name": "Title and description ideas", "aka": ["başlık", "açıklama"],
-     "what": "Title options and a description draft from the transcript.", "when": "Publishing.", "auto": true, "how": "references/publish.md"},
-    {"id": "thumbnail-frames", "group": "publish", "name": "Thumbnail frame candidates", "aka": ["kapak karesi"],
-     "what": "Pick sharp, expressive frames as thumbnail candidates, saved as images for the user.", "when": "Publishing.",
-     "auto": true, "how": "qc.py thumbs"},
-    {"id": "edl-export", "group": "publish", "name": "EDL / FCPXML export", "aka": ["Premiere'e aktarım", "DaVinci'ye aktarım"],
-     "what": "Export the cut as an EDL or FCPXML timeline to finish in Premiere Pro, DaVinci Resolve or Final Cut.",
-     "when": "When the finish happens in another editor.", "auto": true, "how": "cutlist.py export"}
+    {
+      "id": "jump-cut",
+      "group": "cuts",
+      "name": "Jump cut",
+      "aka": [
+        "atlama kesmesi"
+      ],
+      "what": "Cut out pauses or mistakes inside one continuous shot; the image jumps slightly.",
+      "when": "Talking-head videos, vlogs, tutorials - keeps pace high.",
+      "auto": true,
+      "how": "transcript.py + cutlist.py build (pauses from audio, retakes removed)"
+    },
+    {
+      "id": "jump-cut-zoom",
+      "group": "cuts",
+      "name": "Jump-cut zoom (punch-in on cuts)",
+      "aka": [
+        "zoom cut",
+        "punch cut"
+      ],
+      "what": "Alternate the framing at every jump cut (e.g. 100% / 110%) so the cut reads as a new angle instead of a glitch.",
+      "when": "Any tight-cut talking head. Use 105-115%; keep eyes inside the frame.",
+      "auto": true,
+      "how": "cutlist.py zoom -> one Scale expression reading zoom.json",
+      "params": {
+        "levels": [
+          100,
+          110
+        ],
+        "mode": "alternate"
+      }
+    },
+    {
+      "id": "emphasis-punch-in",
+      "group": "motion",
+      "name": "Emphasis punch-in",
+      "aka": [
+        "vurgu zoomu"
+      ],
+      "what": "Quick zoom-in on a key word or line, held until the next cut.",
+      "when": "Punchlines, numbers, the main claim of a sentence.",
+      "auto": true,
+      "how": "cutlist.py zoom --emphasis subs.json (highlighted cues) or chosen times",
+      "params": {
+        "scale": 118,
+        "frames": 3
+      }
+    },
+    {
+      "id": "smooth-push",
+      "group": "motion",
+      "name": "Slow push-in",
+      "aka": [
+        "ken burns",
+        "yavaş zoom"
+      ],
+      "what": "Very slow continuous zoom (2-5%) across a shot to add life to static footage or stills.",
+      "when": "Long static shots, photos, B-roll.",
+      "auto": true,
+      "how": "Scale keyframes over the layer's duration (ease in-out)"
+    },
+    {
+      "id": "camera-shake",
+      "group": "motion",
+      "name": "Camera shake / impact",
+      "aka": [
+        "sarsıntı"
+      ],
+      "what": "Short positional shake on an impact moment or beat.",
+      "when": "Drops, hits, reveals. Short (4-8 frames) and small.",
+      "auto": true,
+      "how": "Position wiggle expression gated by time, or a learned preset"
+    },
+    {
+      "id": "j-cut",
+      "group": "cuts",
+      "name": "J-cut",
+      "aka": [
+        "audio leads"
+      ],
+      "what": "The next shot's audio starts before its picture: we hear B while still seeing A.",
+      "when": "Moving into a new speaker, scene or the voice-over; makes transitions feel natural.",
+      "auto": true,
+      "how": "Extend the incoming audio layer earlier (layer.set_timing inPoint) while the video keeps its cut; typical lead 0.3-1.0 s"
+    },
+    {
+      "id": "l-cut",
+      "group": "cuts",
+      "name": "L-cut",
+      "aka": [
+        "audio lags",
+        "J-cut'ın tersi"
+      ],
+      "what": "The previous shot's audio continues over the next picture: we see B while still hearing A.",
+      "when": "Showing a reaction, screen recording or B-roll while the speaker finishes a sentence.",
+      "auto": true,
+      "how": "Extend the outgoing audio layer's outPoint past the video cut; typical tail 0.3-1.5 s"
+    },
+    {
+      "id": "cutaway",
+      "group": "cuts",
+      "name": "Cutaway / B-roll",
+      "aka": [
+        "ara görüntü"
+      ],
+      "what": "Cover part of the main shot with related footage while the audio continues.",
+      "when": "Hide jump cuts, illustrate what is said, keep attention.",
+      "auto": false,
+      "how": "Footage layer above the main shot for the covered range"
+    },
+    {
+      "id": "match-cut",
+      "group": "cuts",
+      "name": "Match cut",
+      "aka": [
+        "eşleşme kesmesi"
+      ],
+      "what": "Cut between two shots that match in shape, movement or composition.",
+      "when": "Stylish scene changes; needs footage that matches.",
+      "auto": false,
+      "how": "Align the matching moments; comp.sample to compare positions"
+    },
+    {
+      "id": "match-on-action",
+      "group": "cuts",
+      "name": "Cut on action",
+      "aka": [
+        "hareket üzerinde kesme"
+      ],
+      "what": "Cut in the middle of a movement so the motion hides the edit.",
+      "when": "Multi-angle or B-roll edits.",
+      "auto": false,
+      "how": "Place the cut 2-4 frames into the movement"
+    },
+    {
+      "id": "smash-cut",
+      "group": "cuts",
+      "name": "Smash cut",
+      "aka": [
+        "sert kesme"
+      ],
+      "what": "Abrupt cut from one mood/volume to a very different one for contrast or comedy.",
+      "when": "Jokes, hooks, reveals.",
+      "auto": false,
+      "how": "Hard cut, often with a sudden audio change"
+    },
+    {
+      "id": "whip-transition",
+      "group": "cuts",
+      "name": "Whip / swish transition",
+      "aka": [
+        "hızlı kaydırma geçişi"
+      ],
+      "what": "Fast directional motion blur carrying one shot into the next.",
+      "when": "Energetic changes between scenes.",
+      "auto": true,
+      "how": "Library transition or preset; motion blur on; 6-10 frames"
+    },
+    {
+      "id": "speed-ramp",
+      "group": "cuts",
+      "name": "Speed ramp",
+      "aka": [
+        "hız rampası"
+      ],
+      "what": "Change playback speed smoothly within a shot (fast -> slow -> fast).",
+      "when": "Action, reveals, beat hits.",
+      "auto": false,
+      "how": "Time remapping keyframes with eased velocity; needs footage shot at a higher frame rate for slow parts"
+    },
+    {
+      "id": "montage",
+      "group": "cuts",
+      "name": "Montage / rhythm cut",
+      "aka": [
+        "ritim kurgusu"
+      ],
+      "what": "Sequence of short shots cut to the music's beat.",
+      "when": "Intros, recaps, highlights.",
+      "auto": false,
+      "how": "Cut points on beats; markers from the music"
+    },
+    {
+      "id": "loudness-normalize",
+      "group": "audio",
+      "name": "Loudness normalization",
+      "aka": [
+        "ses seviyesi eşitleme",
+        "LUFS"
+      ],
+      "what": "Bring the whole mix to a target loudness so it matches the platform (YouTube/Spotify -14 LUFS, broadcast -23).",
+      "when": "Every delivery.",
+      "auto": true,
+      "how": "audio.py process --chain loudnorm (two-pass)",
+      "params": {
+        "target_lufs": -14,
+        "true_peak": -1
+      }
+    },
+    {
+      "id": "noise-reduction",
+      "group": "audio",
+      "name": "Noise reduction",
+      "aka": [
+        "gürültü azaltma",
+        "denoise"
+      ],
+      "what": "Reduce steady background hiss, hum or room noise.",
+      "when": "Home recordings, fans, AC hum. Too much makes voices robotic.",
+      "auto": true,
+      "how": "audio.py process --chain denoise (FFT denoiser, gentle by default)"
+    },
+    {
+      "id": "high-pass",
+      "group": "audio",
+      "name": "High-pass filter",
+      "aka": [
+        "low cut",
+        "alçak frekans kesme"
+      ],
+      "what": "Remove rumble below ~80 Hz (desk bumps, traffic, handling noise).",
+      "when": "Almost every voice recording.",
+      "auto": true,
+      "how": "audio.py process --chain highpass"
+    },
+    {
+      "id": "de-esser",
+      "group": "audio",
+      "name": "De-esser",
+      "aka": [
+        "s sesi yumuşatma"
+      ],
+      "what": "Tame harsh 's' and 'ş' sounds.",
+      "when": "Bright microphones, close speech.",
+      "auto": true,
+      "how": "audio.py process --chain deess"
+    },
+    {
+      "id": "compression",
+      "group": "audio",
+      "name": "Voice compression",
+      "aka": [
+        "kompresör",
+        "dinamik kontrol"
+      ],
+      "what": "Even out loud and quiet parts of speech so every word is clear.",
+      "when": "Talking heads, voice-overs.",
+      "auto": true,
+      "how": "audio.py process --chain compress"
+    },
+    {
+      "id": "eq-presence",
+      "group": "audio",
+      "name": "Presence EQ",
+      "aka": [
+        "netlik EQ"
+      ],
+      "what": "Small boost around 3-5 kHz and a cut of muddiness around 250-400 Hz for clearer speech.",
+      "when": "Dull or muddy voices.",
+      "auto": true,
+      "how": "audio.py process --chain eq"
+    },
+    {
+      "id": "ducking",
+      "group": "audio",
+      "name": "Music ducking",
+      "aka": [
+        "müziği konuşmada kısma",
+        "sidechain"
+      ],
+      "what": "Music drops automatically while someone speaks and comes back in the gaps.",
+      "when": "Any video with music under speech.",
+      "auto": true,
+      "how": "audio.py duck voice music (sidechain compression) or Audio Levels keyframes from the cut list's speech regions",
+      "params": {
+        "duck_db": -12
+      }
+    },
+    {
+      "id": "room-tone",
+      "group": "audio",
+      "name": "Room tone fill",
+      "aka": [
+        "ortam sesi doldurma"
+      ],
+      "what": "Fill dead-silent gaps with the room's own quiet sound so cuts don't feel like holes.",
+      "when": "Tight cuts with very clean silence.",
+      "auto": false,
+      "how": "Loop a quiet room-tone clip under the voice track"
+    },
+    {
+      "id": "crossfades",
+      "group": "audio",
+      "name": "Micro crossfades",
+      "aka": [
+        "tık önleme"
+      ],
+      "what": "A few milliseconds of fade at every audio cut to avoid clicks.",
+      "when": "Always on cuts.",
+      "auto": true,
+      "how": "Built into cutlist.py render (5 ms)"
+    },
+    {
+      "id": "breath-control",
+      "group": "audio",
+      "name": "Breath reduction",
+      "aka": [
+        "nefes azaltma"
+      ],
+      "what": "Lower (not remove) loud breaths between sentences.",
+      "when": "Close-mic voice-overs.",
+      "auto": false,
+      "how": "Keep breaths with a larger pad-after, then lower their level; removing them entirely sounds unnatural"
+    },
+    {
+      "id": "multi-format",
+      "group": "format",
+      "name": "Multi-format delivery (reframe)",
+      "aka": [
+        "çoklu format",
+        "16:9 9:16 1:1"
+      ],
+      "what": "Make 16:9, 9:16 and 1:1 versions from one edit: duplicate the comp, resize, re-place subtitles and UI in each format's safe area.",
+      "when": "Publishing to YouTube + Shorts/Reels/TikTok.",
+      "auto": true,
+      "how": "references/formats.md"
+    },
+    {
+      "id": "pre-render-qc",
+      "group": "qc",
+      "name": "Pre-render quality check",
+      "aka": [
+        "render öncesi kontrol"
+      ],
+      "what": "Check missing fonts/footage, safe areas, text spelling, audio peaks and black/frozen frames before delivering.",
+      "when": "Before every final render.",
+      "auto": true,
+      "how": "references/qc.md + qc.py on the render"
+    },
+    {
+      "id": "layer-organize",
+      "group": "organize",
+      "name": "Layer order, naming and colour labels",
+      "aka": [
+        "katman düzeni",
+        "etiket renkleri"
+      ],
+      "what": "Sort layers by role, name them with standard prefixes and give each role its own label colour.",
+      "when": "After every edit (automatic unless turned off).",
+      "auto": true,
+      "how": "references/organize.md"
+    },
+    {
+      "id": "project-log",
+      "group": "organize",
+      "name": "Project log",
+      "aka": [
+        "proje günlüğü"
+      ],
+      "what": "A short running log in the project's _keremkit folder so work can continue in a new chat.",
+      "when": "Every project.",
+      "auto": true,
+      "how": "SKILL.md -> Project log"
+    },
+    {
+      "id": "chapters",
+      "group": "publish",
+      "name": "YouTube chapters",
+      "aka": [
+        "bölümler"
+      ],
+      "what": "Chapter list with output times from the corrected transcript.",
+      "when": "Videos over ~3 minutes.",
+      "auto": true,
+      "how": "references/publish.md"
+    },
+    {
+      "id": "titles-descriptions",
+      "group": "publish",
+      "name": "Title and description ideas",
+      "aka": [
+        "başlık",
+        "açıklama"
+      ],
+      "what": "Title options and a description draft from the transcript.",
+      "when": "Publishing.",
+      "auto": true,
+      "how": "references/publish.md"
+    },
+    {
+      "id": "thumbnail-frames",
+      "group": "publish",
+      "name": "Thumbnail frame candidates",
+      "aka": [
+        "kapak karesi"
+      ],
+      "what": "Pick sharp, expressive frames as thumbnail candidates, saved as images for the user.",
+      "when": "Publishing.",
+      "auto": true,
+      "how": "qc.py thumbs"
+    },
+    {
+      "id": "edl-export",
+      "group": "publish",
+      "name": "EDL / FCPXML export",
+      "aka": [
+        "Premiere'e aktarım",
+        "DaVinci'ye aktarım"
+      ],
+      "what": "Export the cut as an EDL or FCPXML timeline to finish in Premiere Pro, DaVinci Resolve or Final Cut.",
+      "when": "When the finish happens in another editor.",
+      "auto": true,
+      "how": "cutlist.py export"
+    },
+    {
+      "id": "cut-on-word",
+      "group": "cuts",
+      "name": "Cut on the word",
+      "aka": [
+        "kelimede kesme"
+      ],
+      "what": "Every picture cut lands one frame before the spoken word it belongs to, so image and voice change together.",
+      "when": "Voice-led edits: explainers, reels, documentaries.",
+      "auto": true,
+      "how": "editplan.py check (lead_frames: 1)"
+    },
+    {
+      "id": "editorial-rhythm",
+      "group": "cuts",
+      "name": "Human editorial rhythm",
+      "aka": [
+        "insan gibi kurgu ritmi"
+      ],
+      "what": "Cut on meaning, not on a timer: shot lengths vary (about 1.2-3.5 s, talking shots longer), the speaker is kept for the hook, the turns and the call to action, never two speaker shots in a row.",
+      "when": "Any edit that should not feel automatic.",
+      "auto": true,
+      "how": "editplan.py rules (min_shot, max_shot, long_kinds, no_consecutive)"
+    },
+    {
+      "id": "clip-reuse",
+      "group": "cuts",
+      "name": "One clip, many moments",
+      "aka": [
+        "klibi farklı anlarla kullanma"
+      ],
+      "what": "Feed several consecutive shots from one longer clip by starting each at a different second; never show the same seconds twice.",
+      "when": "Generated or stock clips with several sub-shots.",
+      "auto": true,
+      "how": "editplan.py (no_repeat_seconds) + shot 'in' values"
+    },
+    {
+      "id": "glass-frame",
+      "group": "look",
+      "name": "Floating glass frame",
+      "aka": [
+        "cam çerçeve"
+      ],
+      "what": "The clip sits in a rounded frame about 78% of the frame width with a faint white pane, a thin glowing border, a soft inner edge and a deep soft shadow; it floats slightly upward and pushes in from 100 to about 107% over the shot.",
+      "when": "Showing footage inside a designed, documentary-style layout.",
+      "auto": true,
+      "how": "Precomp the clip; rounded-rectangle track matte (radius ~34 px at 1920 wide); border = shape stroke 2 px + Glow; Drop Shadow (distance ~22, softness ~70); Scale keyframes ease in-out; a new run of clips lands 95->100% in 6 frames with a strong ease-out",
+      "params": {
+        "width_ratio": 0.78,
+        "radius_px": 34,
+        "push_in": [
+          100,
+          107
+        ],
+        "land_frames": 6
+      }
+    },
+    {
+      "id": "ambient-backlight",
+      "group": "look",
+      "name": "Blurred ambient backlight",
+      "aka": [
+        "bulanık arka ışık"
+      ],
+      "what": "The same clip, enlarged (~125%), heavily blurred and darkened, fills the background behind the framed clip so the colours spill around it.",
+      "when": "Behind framed or glass clips.",
+      "auto": true,
+      "how": "Duplicate the clip layer below; Scale 125%, Gaussian/Fast Box Blur ~90, Exposure about -1.8"
+    },
+    {
+      "id": "perspective-grid",
+      "group": "look",
+      "name": "Moving perspective grid",
+      "aka": [
+        "perspektif ızgara"
+      ],
+      "what": "A 3D floor of thin lines rotated back about 78 degrees, sliding toward the viewer, fading at the horizon, with a soft glow.",
+      "when": "Behind spoken lists or tech sections.",
+      "auto": true,
+      "how": "Shape layer with a repeater of 3 px lines every ~120 px, 3D layer X rotation ~78, Position animated two cells per second, gradient matte for the horizon fade, Glow"
+    },
+    {
+      "id": "keyword-flip",
+      "group": "look",
+      "name": "Keyword flip",
+      "aka": [
+        "kelime çevirme"
+      ],
+      "what": "On the exact frame a list keyword is spoken, the caption word squashes vertically to nothing in 2 frames and opens again in 2 frames in the accent colour; a short tick sound goes with it.",
+      "when": "Spoken lists, key terms.",
+      "auto": true,
+      "how": "Text animator on that word: Scale Y 100->0->100 over 4 frames (sharp ease-in then ease-out), Fill Color holds to accent from +2 frames; sfx tick"
+    },
+    {
+      "id": "key-flicker",
+      "group": "look",
+      "name": "Flicker-in emphasis caption",
+      "aka": [
+        "titreyerek giren vurgu"
+      ],
+      "what": "Emphasised caption words are larger and bold and enter with a quick flicker (opacity 35/100/35/100/35/100% on consecutive frames).",
+      "when": "At most one key word per sentence.",
+      "auto": true,
+      "how": "Opacity HOLD keyframes on the word's animator; size and weight from the style"
+    },
+    {
+      "id": "flash-in",
+      "group": "look",
+      "name": "Bleach flash on the cut",
+      "aka": [
+        "kesimde flaş"
+      ],
+      "what": "The first 4 frames after a cut are over-exposed and settle back (exposure about +4, +2.2, +0.8, 0).",
+      "when": "Cuts into new clips or cards; keep it consistent.",
+      "auto": true,
+      "how": "Adjustment layer with Exposure HOLD keys; place HOLD keys half a frame early so motion blur never mixes two states"
+    },
+    {
+      "id": "hit-invert",
+      "group": "look",
+      "name": "Negative flick",
+      "aka": [
+        "negatif vuruş"
+      ],
+      "what": "A negative frame right before the cut, then one normal and one near-black frame.",
+      "when": "3-6 dramatic cuts per minute at most.",
+      "auto": true,
+      "how": "Adjustment layer with Invert on the frame before the cut, then Exposure -3 for one frame; glitch sfx"
+    },
+    {
+      "id": "hit-strobe",
+      "group": "look",
+      "name": "Strobe into the cut",
+      "aka": [
+        "strob"
+      ],
+      "what": "White/black/white/black/white frames leading into the cut.",
+      "when": "At most two 'it got crazier' moments.",
+      "auto": true,
+      "how": "Solid layers or Exposure HOLD keys from -3 frames; flash sfx"
+    },
+    {
+      "id": "hit-burn",
+      "group": "look",
+      "name": "Burn-out frames",
+      "aka": [
+        "yanık kareler"
+      ],
+      "what": "Two blown-out, posterised frames at a peak moment.",
+      "when": "At most two peaks per video.",
+      "auto": true,
+      "how": "Adjustment layer: Exposure +3 and Posterize for 2 frames"
+    },
+    {
+      "id": "film-grain",
+      "group": "look",
+      "name": "Film grain over everything",
+      "aka": [
+        "film greni"
+      ],
+      "what": "A light noise layer (about 2%) unifies footage, graphics and text.",
+      "when": "Documentary or archival looks.",
+      "auto": true,
+      "how": "Top adjustment layer with Noise ~2% (or Add Grain)"
+    },
+    {
+      "id": "type-page",
+      "group": "pages",
+      "name": "Typewriter page",
+      "aka": [
+        "daktilo sayfası"
+      ],
+      "what": "Black page, typewriter font, letters appearing one by one over min(0.05 s per character, 70% of the shot), with glow, grain, vignette and a typing sound.",
+      "when": "Opening question, section titles (six words at most).",
+      "auto": true,
+      "how": "Text animator Opacity with Range Selector End animated (or Typewriter preset); sfx typing"
+    },
+    {
+      "id": "giant-word-page",
+      "group": "pages",
+      "name": "Giant word page",
+      "aka": [
+        "dev kelime sayfası"
+      ],
+      "what": "One word in condensed black fitted to most of the frame width on a dark page with a faint grid; optional red label box and a serif italic sub-line; the page drifts sideways slowly and pushes in.",
+      "when": "Naming a concept.",
+      "auto": true,
+      "how": "Text fitted with text.measure; Position drift ~12 px/s and Scale push-in ~2%/s, linear; sfx impact"
+    },
+    {
+      "id": "cards-page",
+      "group": "pages",
+      "name": "Photo cards page",
+      "aka": [
+        "fotoğraf kartları"
+      ],
+      "what": "Up to four paper cards (slightly rotated) with a clip or image and a round logo badge; each snaps in on its spoken name (108->100% in 5 frames) and the name changes in the middle.",
+      "when": "When people, products or brands are listed by name.",
+      "auto": true,
+      "how": "Library card item or precomps; Scale keys with a strong ease-out; logos only after the user's OK (publish.md)"
+    }
   ]
 }

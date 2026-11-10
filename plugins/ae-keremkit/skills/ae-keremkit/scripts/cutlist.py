@@ -185,30 +185,62 @@ def fmt(t):
 
 
 # ---------------------------------------------------------------- commands
-def detect_silences(media, max_pause, noise_db=None):
-    """Silent stretches from the actual audio (ffmpeg silencedetect).
-
-    Whisper word timestamps often run into the pause after a word, so cutting on words
-    alone leaves part of every pause in. The audio itself says where speech stops.
-    Returns ([(start, end)], threshold_db) or (None, None) when ffmpeg is unavailable."""
+def audio_db(media, hop=0.01):
+    """Loudness envelope (dBFS every 10 ms) of the first audio stream, via ffmpeg. None if unavailable."""
     if not shutil.which("ffmpeg"):
+        return None
+    sr = 8000
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", media, "-map", "0:a:0", "-ac", "1", "-ar", str(sr),
+                        "-f", "s16le", "-"], capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        return None
+    import array
+    import math
+    a = array.array("h")
+    a.frombytes(r.stdout[: len(r.stdout) // 2 * 2])
+    if sys.byteorder == "big":
+        a.byteswap()
+    n = int(sr * hop)
+    out = []
+    for k in range(0, len(a) - n + 1, n):
+        acc = 0
+        for v in a[k:k + n]:
+            acc += v * v
+        out.append(10 * math.log10(acc / n / 1073741824.0 + 1e-12))
+    return out
+
+
+def detect_silences(media, max_pause, noise_db=None, words=None, rel_db=-10.0):
+    """Silent stretches from the actual audio.
+
+    Whisper's word ends often run into the following pause, so cutting on words alone leaves part of
+    every pause in. The threshold is relative to the speech itself: the median level of the frames
+    inside Whisper's words, minus rel_db (default 10 dB). An explicit noise_db overrides it.
+    Returns ([(start, end)], threshold_db) or (None, None) when ffmpeg/audio is unavailable."""
+    env = audio_db(media)
+    if env is None:
         return None, None
+    hop = 0.01
     if noise_db is None:
-        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", media, "-map", "0:a:0",
-                            "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True)
-        m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", r.stderr or "")
-        if not m:
-            return None, None
-        # speech sits around the mean; silence is well below it
-        noise_db = max(-55.0, min(-28.0, float(m.group(1)) - 16.0))
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", media, "-map", "0:a:0",
-                        "-af", f"silencedetect=noise={noise_db}dB:d={max(0.05, max_pause)}", "-f", "null", "-"],
-                       capture_output=True, text=True)
-    starts = [float(x) for x in re.findall(r"silence_start:\s*(-?[\d.]+)", r.stderr or "")]
-    ends = [float(x) for x in re.findall(r"silence_end:\s*(-?[\d.]+)", r.stderr or "")]
-    if len(ends) < len(starts):          # silence runs to the end of the file
-        ends.append(float("inf"))
-    return [(max(0.0, a), b) for a, b in zip(starts, ends)], noise_db
+        speech = []
+        for s, e in (words or []):
+            speech.extend(env[int(s / hop):int(e / hop) + 1])
+        if not speech:
+            speech = env
+        speech.sort()
+        median = speech[len(speech) // 2]
+        noise_db = max(-60.0, min(-20.0, median + rel_db))
+    out, start = [], None
+    min_len = max(0.05, max_pause)
+    for k, v in enumerate(env + [0.0]):
+        if v < noise_db and k < len(env):
+            if start is None:
+                start = k
+        elif start is not None:
+            if (k - start) * hop >= min_len:
+                out.append((start * hop, k * hop))
+            start = None
+    return out, noise_db
 
 
 def subtract(intervals, holes):
@@ -254,9 +286,13 @@ def cmd_build(a):
 
     silences, noise = (None, None)
     if a.silence != "off" and has_a is not False:
-        silences, noise = detect_silences(a.media, p["max_pause"], a.noise_db)
+        silences, noise = detect_silences(a.media, p["max_pause"], a.noise_db, word_iv, a.rel_db)
         if silences is None and a.silence == "on":
             sys.exit("ERROR: silence detection needs ffmpeg with an audio stream")
+    mode = "words only"
+    if silences == []:
+        mode = "words only (audio has no pauses below the threshold)"
+        silences = None
     if silences:
         # speech = audio that is not silent, kept only where Whisper heard words (drops coughs, clicks, noise)
         speech = subtract([[0.0, dur]], [(x, min(y, dur)) for x, y in silences])
@@ -265,7 +301,6 @@ def cmd_build(a):
         mode = f"audio+words (silence < {noise:.0f} dB)"
     else:
         raw = [[s - p["pad_before"], e + p["pad_after"]] for s, e in word_iv]
-        mode = "words only"
     merged = []
     for iv in sorted(raw):
         if merged and iv[0] - merged[-1][1] <= p["max_pause"]:
@@ -316,7 +351,16 @@ def cmd_map(a):
         print(f"src {fmt(a.src)} -> out {fmt(o)}" if o is not None else f"src {fmt(a.src)} is in a REMOVED part")
 
 
+def need(cond, msg):
+    if not cond:
+        sys.exit("ERROR: " + msg)
+
+
 def cmd_add(a):
+    need(a.sec > 0, f"--sec must be positive (got {a.sec})")
+    if a.at is None:
+        need(a.to > a.frm, f"--to must be after --from (got {a.frm} -> {a.to})")
+    need(min(x for x in (a.at, a.frm, a.to) if x is not None) >= 0, "times must not be negative")
     cl = load(a.cutlist)
     segs = cl["segments"]
     prev = intervals(cl)
@@ -368,7 +412,10 @@ def cmd_add(a):
 
 
 def cmd_cut(a):
+    need(a.to > a.frm, f"--to must be after --from (got {a.frm} -> {a.to})")
+    need(a.frm >= 0, "times must not be negative")
     cl = load(a.cutlist)
+    need(a.frm < cl["out_duration"], f"--from {a.frm} is past the end of the output ({cl['out_duration']} s)")
     prev = intervals(cl)
     remove = []
     for s in cl["segments"]:
@@ -397,6 +444,8 @@ def cmd_cut(a):
 
 
 def cmd_restore(a):
+    need(a.src_to > a.src_from, f"--src-to must be after --src-from (got {a.src_from} -> {a.src_to})")
+    need(a.src_from >= 0, "times must not be negative")
     cl = load(a.cutlist)
     prev = intervals(cl)
     merged = normalize(prev + [[a.src_from, a.src_to]], cl.get("fps"), cl.get("duration"))
@@ -423,7 +472,7 @@ def cmd_render(a):
     segs = cl["segments"]
     has_v = cl.get("has_video", True) is not False
     has_a = cl.get("has_audio", True) is not False
-    fade = 0.005  # tiny audio fades stop clicks at every cut
+    fade = 0.008  # tiny audio fades stop clicks at every cut
     lines, vl, al = [], [], []
     for i, s in enumerate(segs):
         a0, b0 = s["src_in"], s["src_out"]
@@ -451,12 +500,17 @@ def cmd_render(a):
         if cl.get("fps"):
             cmd += ["-r", str(cl["fps"]), "-fps_mode", "cfr"]
     if has_a:
-        cmd += ["-map", "[a]"] + (["-c:a", "aac", "-b:a", "256k"] if has_v else ["-c:a", "pcm_s16le", "-ar", "48000"])
+        compressed = has_v or a.output.lower().endswith((".m4a", ".mp4", ".aac", ".mov"))
+        cmd += ["-map", "[a]"] + (["-c:a", "aac", "-b:a", "256k"] if compressed else ["-c:a", "pcm_s16le", "-ar", "48000"])
     cmd.append(a.output)
     if not a.run:
         print(" ".join(f'"{c}"' if " " in c else c for c in cmd))
         return
     r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0 and "fps_mode" in (r.stderr or ""):
+        i = cmd.index("-fps_mode")
+        cmd[i:i + 2] = ["-vsync", "cfr"]           # ffmpeg before 5.1
+        r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0 and "filter_complex_script" in (r.stderr or ""):
         cmd[cmd.index("-filter_complex_script")] = "-/filter_complex"  # ffmpeg 7.1+ spelling
         r = subprocess.run(cmd, capture_output=True, text=True)
@@ -560,7 +614,9 @@ def main():
         b.add_argument("--" + k, type=float, dest=k.replace("-", "_"))
     b.add_argument("--silence", choices=["auto", "on", "off"], default="auto",
                    help="cut on the real audio silence too (needs ffmpeg); auto = when available")
-    b.add_argument("--noise-db", type=float, help="silence threshold in dB (default: from the file's loudness)")
+    b.add_argument("--noise-db", type=float, help="absolute silence threshold in dBFS (overrides --rel-db)")
+    b.add_argument("--rel-db", type=float, default=-10.0,
+                   help="silence = quieter than the speech median by this much (default -10 dB)")
     b.add_argument("--remove", help="removals JSON from transcript.py repeats (repeats, false starts, fillers)")
     b.add_argument("--include-uncertain", action="store_true", help="also remove low-confidence repeats")
     b.add_argument("-o", "--output", required=True)

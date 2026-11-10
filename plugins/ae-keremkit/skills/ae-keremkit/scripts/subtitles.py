@@ -110,11 +110,26 @@ def load_words(path):
         raw = data["word_segments"]
     elif data.get("words"):
         raw = data["words"]
+    if not raw and isinstance(data, dict) and data.get("segments"):
+        # no word timestamps: spread each segment's words evenly over the segment (coarse, but usable)
+        for seg in data["segments"]:
+            toks = (seg.get("text") or "").split()
+            s0, e0 = seg.get("start"), seg.get("end")
+            if not toks or s0 is None or e0 is None:
+                continue
+            step = (float(e0) - float(s0)) / len(toks)
+            raw.extend({"word": tk, "start": float(s0) + k * step, "end": float(s0) + (k + 1) * step}
+                       for k, tk in enumerate(toks))
+        if raw:
+            print(f"WARN {os.path.basename(path)} has no word timestamps; word times were spread over each segment. "
+                  "Re-run Whisper with word timestamps for exact timing.", file=sys.stderr)
     out = []
     for w in raw:
         t = (w.get("word") or w.get("text") or "").strip()
         if t:
             out.append([w.get("start"), w.get("end"), t])
+    if not out:
+        sys.exit(f"ERROR: {path} contains no words (was Whisper run with word timestamps?)")
     for i, w in enumerate(out):
         if w[0] is None:
             w[0] = out[i - 1][1] if i and out[i - 1][1] is not None else 0.0
@@ -249,7 +264,7 @@ def fix_small(cues, r):
             cands = []
             for j in (i - 1, i + 1):
                 if 0 <= j < len(cues) and cues[j][0]["z"] == c[0]["z"] and len(cues[j]) + len(c) <= mx:
-                    first, second = (cues[j], c) if j < i else (c, cues[j])
+                    first = cues[j] if j < i else c
                     if r["split_mode"] != "words" and SENT_END.search(first[-1]["w"]):
                         continue  # never glue two sentences together to satisfy min_words
                     gap = (c[0]["s"] - cues[j][-1]["e"]) if j < i else (cues[j][0]["s"] - c[-1]["e"])
@@ -429,7 +444,13 @@ def cmd_build(a):
             cut = load_json(os.path.join(base, p["cutlist"])) if p.get("cutlist") else None
             placed = place(load_words(wp), cut, p.get("from") or 0, p.get("to"), p.get("at") or 0, p.get("zone") or "main")
             words.extend(placed)
-            end_src = p.get("to") if p.get("to") is not None else (cut["out_duration"] if cut else (placed[-1]["e"] if placed else 0))
+            # end in the placement's own time base (cut output, or source when there is no cut list)
+            if p.get("to") is not None:
+                end_src = p["to"]
+            elif cut:
+                end_src = cut["out_duration"]
+            else:
+                end_src = max((w[1] for w in load_words(wp)), default=p.get("from") or 0)
             zones.append({"s": round(p.get("at") or 0, 3), "e": round((p.get("at") or 0) + end_src - (p.get("from") or 0), 3),
                           "z": p.get("zone") or "main"})
     else:
