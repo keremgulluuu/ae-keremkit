@@ -24,7 +24,11 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `paths.presets` | first time presets are learned | "Which folder holds your After Effects presets?" |
 | `paths.footage_folders` | first edit that needs footage | "Which folder holds the material for this edit? (Tell me once - I'll remember it.)" |
 | `paths.projects` | the first time an unsaved project must be saved (library save, checkpoint, save-prep) | "Where do you keep your main projects? I'll suggest saving new ones there." |
-| `subtitles.enabled`, `engine`, `tools.whisper.model` | setup | see `setup.md` |
+| `subtitles.enabled`, `engine`, `tools.whisper.model` | setup; the model again at the first transcription if still null - never chosen by Claude | see `setup.md` |
+| `download.mode` | default `premiere_fix`; changed when the user says "always ..." (`best_repair` for 4K + Premiere, `best` untouched, `ask` every time) | `downloads.md` |
+| `download.folder` | default `ask` - every download asks for the folder (offering `download.last_folder`); `fixed` + `last_folder` only when the user says to always use one | `downloads.md` |
+| `download.cookies` | default `ask` - only when a video needs sign-in | `downloads.md` -> Sign-in |
+| `download.encoder` | default `auto` (GPU first) | `downloads.md` -> Repairing |
 | `subtitles.rules.*` | first subtitle build | see `subtitles.md` |
 | `subtitles.font`, `subtitles.look` | first subtitle build without a style | "Do you have a font and look in mind for subtitles, or shall I suggest one?" |
 | `cutting.repeats` | first cut of a spoken recording | "Should I remove retakes and repeated phrases automatically? (I will still ask about unclear ones.)" |

@@ -40,6 +40,8 @@ TOOLS = (
     "previews.py",
     "assets.py",
     "digest.py",
+    "prproj.py",
+    "download.py",
 )
 ASSET_FILES = ("techniques.json",)
 SKILL_FRONTMATTER_KEYS = {

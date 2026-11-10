@@ -25,4 +25,8 @@ Use a logo only when that name is actually said or shown in the video, or the us
 
 ## Finishing in another editor
 
-`cutlist.py export cam.cut.json --format edl -o cam.edl` (Premiere Pro, DaVinci Resolve, Avid) or `--format fcpxml -o cam.fcpxml` (Final Cut Pro, Resolve). One event per kept segment, pointing at the original recording; subtitles go along as `subs.srt`.
+- **Premiere Pro:** `cutlist.py export cam.cut.json --format xmeml -o cam_cut.xml` (FCP7 XML: media linked, one master clip, frame-exact) - details, HDR colour note and the MCP route in `premiere.md`.
+- **DaVinci Resolve / Avid:** `--format edl -o cam.edl` (CMX3600, frame-exact, one audio track; media is linked by hand).
+- **Final Cut Pro / Resolve:** `--format fcpxml -o cam.fcpxml`.
+
+One event per kept segment, pointing at the original recording; subtitles go along as `subs.srt`. Deliverables go into `<video name> - Bileşenler` next to the video when the user has that rule.

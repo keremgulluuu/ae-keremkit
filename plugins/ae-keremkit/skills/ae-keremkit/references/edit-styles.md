@@ -51,6 +51,8 @@ Three ways - all end with a draft shown to the user for confirmation, then `kere
 - **From the current chat:** if the user just edited a video here, extract the decisions and corrections they made in this conversation.
 - **From a reference video:** `video-reference.md` - rhythm, look and motion measured from the video, then confirmed with the user.
 - **From a finished project:** `ae_project_export_json(outPath=...)` -> `digest.py <file> [--comp SCN_...]` -> draft style from the digest (fonts, palette, layer roles, effects, comp formats) -> ask about what a project cannot show (cut tightness, split cues, SFX intent).
+- **From a Premiere project (.prproj):** on a copy, `prproj.py analyze` -> draft; Premiere-only parts go under `"premiere"` in style.json. Steps in `premiere.md` -> Learning a style.
+- **Before writing `styles/<slug>/style.json`, always** `keremkit.py search "<name>" --type style`. Same name = same slug = same folder: if it exists, ask (a new version through the archive, or a new name). Never write over a style.
 
 Names: English `name` (e.g. "Kerem Style"), local names in `names` (e.g. `{"tr": "Kerem Stili"}`), `aliases` for how the user refers to it; slug = ASCII of the name.
 

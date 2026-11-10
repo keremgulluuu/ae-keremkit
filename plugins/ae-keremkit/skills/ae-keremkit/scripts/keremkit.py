@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.9.0"
+KIT_VERSION = "1.10.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -108,7 +108,14 @@ DEFAULT_PREFS = {
     "presets": {"root": "<User Presets>/KeremKit", "save_method": None},   # save_method: user | screen | ask
     "design": {"plan": "big"},
     "logos": {"confirm": "ask"},            # ask | off - add logos of named brands without asking
-    "assets": {"allow_attribution": False},  # also list free items that need a credit (CC BY)              # always | big (several parts) | off - plan and ask before designing   # ask | never - offer to re-render broken previews
+    "assets": {"allow_attribution": False},  # also list free items that need a credit (CC BY)
+    "download": {
+        "mode": "premiere_fix",  # premiere_fix | best | best_repair | ask (when the user names no quality)
+        "folder": "ask",         # ask = ask for the folder every time (last_folder is offered) | fixed = use last_folder
+        "last_folder": None,
+        "cookies": "ask",        # ask | never | <browser> | <path to cookies.txt>
+        "encoder": "auto",       # repair encoder: auto (GPU first) | libx264 | h264_nvenc | h264_qsv | h264_amf
+    },
     "standards": {
         "safe_area": {"action": 0.93, "title": 0.90},
         "vertical_ui_margin_px": {"top": 220, "bottom": 380, "right": 140, "left": 60},
@@ -248,7 +255,8 @@ def cmd_init(a):
 
 
 TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "editplan.py", "audio.py", "sfx.py", "qc.py",
-         "techniques.py", "tokens.py", "presets.py", "videoref.py", "previews.py", "assets.py", "digest.py", "techniques.json")
+         "techniques.py", "tokens.py", "presets.py", "videoref.py", "previews.py", "assets.py", "digest.py",
+         "prproj.py", "download.py", "techniques.json")
 
 LEARNING_FILES = {
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"

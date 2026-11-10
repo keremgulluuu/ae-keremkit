@@ -42,6 +42,10 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 | Library previews black / empty / tiny | `previews.py scan`; repair as in `previews.md` -> Repairing old previews |
 | A save after a dialog left no file (`save-check` says NOT WRITTEN) | the "second script" dialog blocked it: `instance.dismiss_dialog`, `ae_project_info`, save again |
 | Black items vanish in previews | `render.frame` writes no alpha (transparent becomes black): use the render-queue flow in `previews.md` (TIFF with alpha) |
+| Premiere won't import a video ("vp09", "unsupported format") | VP9/AV1/Opus: `download.py check` -> `download.py repair` (`downloads.md`); next time download with `premiere_fix` or `best_repair` |
+| A download fails (YouTube "reload", TikTok "unable to extract") | `download.py setup --update`; sign-in errors -> cookies (`downloads.md`) |
+| Premiere MCP: `HOST_RECOVERY_REQUIRED`, saves refused | an earlier write had an unknown outcome: `premiere.md` -> Safety (inspect, show the user, acknowledge only after review) |
+| Premiere MCP tools missing although installed | the server was added after the chat started: start a new chat |
 | Glass / blur / adjustment item renders empty | it needs content under it: preview a `TMP_PREVIEW_<ID>` comp with a gradient solid underneath (`previews.md`) |
 | `previews.py pick` says `blank` | every probe frame was empty: wrong comp, hidden or disabled layers, missing footage, or the comp's content starts later than its duration suggests |
 | Whisper JSON without word times | subtitles fall back to even timing per segment (a WARN says so); re-run Whisper with word timestamps |

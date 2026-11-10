@@ -1,8 +1,8 @@
 ---
 name: ae-keremkit
-description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, design plans that reuse library items before building new ones, audio-based silence cutting with retake removal, transcript correction (asks when unsure), edit plans on word indices with rhythm checks, a technique catalogue (J/L cuts, jump-cut zoom, glass frames, flashes, audio clean-up, multi-format, QC), layer organisation, Whisper subtitles, synthesised SFX, a design library (items, projects, multi-frame previews), free stock elements and logos with their licences, copying a look from images, web pages or reference videos, learning .ffx presets, publishing helpers and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles, styles, audio, techniques, designs, presets, reference videos, formats, QC, render - in any language, even when the kit is not named.
+description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, design plans that reuse library items before building new ones, audio-based silence cutting with retake removal, transcript correction (asks when unsure), edit plans on word indices with rhythm checks, a technique catalogue (J/L cuts, jump-cut zoom, glass frames, flashes, audio clean-up, multi-format, QC), layer organisation, Whisper subtitles, synthesised SFX, a design library (items, projects, multi-frame previews), free stock elements and logos with their licences, copying a look from images, web pages or reference videos, learning .ffx presets, publishing, checkpoints, Premiere Pro (XML export, Premiere MCP, styles from .prproj), video downloads (YouTube, TikTok, Instagram...) with a Premiere-safe mode and repair. Use it for ANY After Effects or Premiere work - cutting, subtitles, styles, audio, designs, presets, formats, QC, render, downloading footage - in any language, even unnamed.
 license: MIT
-compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles.
+compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles; optional Premiere MCP (premiere-pro-mcp) and yt-dlp (installed by the kit).
 ---
 
 # AE KeremKit
@@ -29,12 +29,13 @@ KeremKit/
   learning/house-style.md     the user's general design rules
   learning/known-issues.md    solved problems (search by keyword)
   tools/                      keremkit.py, transcript.py, cutlist.py, subtitles.py, editplan.py, audio.py,
-                              sfx.py, qc.py, techniques.py, tokens.py, presets.py, videoref.py, previews.py, assets.py, digest.py
+                              sfx.py, qc.py, techniques.py, tokens.py, presets.py, videoref.py, previews.py, assets.py, digest.py,
+                              prproj.py, download.py;  tools/bin/  yt-dlp (installed by download.py setup)
 ```
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
 
-**Tools version:** once per session, `python tools/keremkit.py version` (this skill is `KeremKit 1.9.0`). If it differs or fails, say so in one line ("KeremKit tools are older than the skill - say 'update KeremKit' to update them") and carry on with what works. Update the tools (`scripts/keremkit.py init`, or copying `scripts/` into `KeremKit/tools/`) **only when the user asks for exactly that**.
+**Tools version:** once per session, `python tools/keremkit.py version` (this skill is `KeremKit 1.10.0`). If it differs or fails, say so in one line ("KeremKit tools are older than the skill - say 'update KeremKit' to update them") and carry on with what works. Update the tools (`scripts/keremkit.py init`, or copying `scripts/` into `KeremKit/tools/`) **only when the user asks for exactly that**.
 
 ## The skill is read-only - the kit grows in the home folder
 
@@ -110,6 +111,8 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | Before the final render, "check everything" | `references/qc.md` |
 | Layer order, names, colour labels | `references/organize.md` |
 | Chapters, titles, thumbnails, export to Premiere/Resolve | `references/publish.md` |
+| Anything in Premiere Pro: a cut as Premiere XML, the Premiere MCP, learning a style from a .prproj | `references/premiere.md` |
+| Downloading a video (YouTube, TikTok, Instagram, other sites), "Premiere fix", 4K + repair, a file Premiere won't import | `references/downloads.md` |
 | Saving something to the library, new categories | `references/library-save.md` |
 | Saving many items (a template pack) or a whole project | `references/library-pack.md` |
 | Making previews, repairing broken ones | `references/previews.md` |

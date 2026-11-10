@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.10.0] - 2026-11-11
+
+### Added
+- **Premiere Pro.** New `references/premiere.md`: the files route (cut list as Premiere XML + SRT) and the Premiere MCP route, tested with premiere-pro-mcp 1.30.0 - work on a project copy, `expected_project_path` on every write, preview tokens, recovery locks, what works (cuts, effects, sound effects, export) and what does not (text, caption styles, clip speed), and three routes for text.
+- `prproj.py`: reads a Premiere project (gzip XML) - sequences, track items, sources, in/out, gain, disabled clips, transitions, effects with keyframes, nested sequences and the Essential Graphics text style (font, size, fill, stroke, shadow). Used to learn an edit style from a `.prproj`; Premiere-only settings go under `"premiere"` in style.json.
+- `cutlist.py export --format xmeml` (now the default): FCP7 XML that Premiere imports with the media linked - one master clip, V1 + one audio track, contiguous frames.
+- **Video downloads.** `download.py` and `references/downloads.md`: YouTube, TikTok, Instagram and other sites through yt-dlp, which the kit installs into `KeremKit/tools/bin`. Three modes: `premiere_fix` (H.264 + AAC streams, no thumbnail/metadata embedding, faststart; YouTube tops out at 1080p), `best_repair` (best streams, 4K/60 kept, re-encoded to H.264 + AAC) and `best` (untouched). The mode can be switched per request or remembered (`download.mode`); the folder is asked every time (`download.folder`, `download.last_folder`); cookies only when a video needs sign-in (`download.cookies`).
+- `download.py check` / `repair`: tells whether Premiere will import a file (VP9, AV1, Opus, 10-bit H.264, variable frame rate) and repairs it through a fallback chain - container, standard re-encode, error concealment, aggressive, segmented - with GPU encoders first and output validation. The original file is never changed.
+
+### Fixed
+- `cutlist.py export --format edl`: source and record times were rounded separately, so some events were a frame longer on one side. Events are now frame-exact and contiguous, use one audio track (`B`) instead of two mono tracks (`AA/V`), and the reel is the clip name.
+- `subtitles.py build`: a word whose Whisper start fell inside a removed pause was dropped although its sound was kept. It now stays on its kept part.
+- `cutlist.py build`: wordless audio as loud as the speaker (for example a sentence Whisper missed) was dropped as noise. It is now kept and reported; `--drop-wordless` removes it.
+
+### Changed
+- Whisper's model is never chosen for the user; it is asked at setup or at the first transcription.
+- Styles: before writing `styles/<slug>/style.json` the catalogue is always searched, and an existing style is never written over.
+- Setup notes that MCP servers must be installed before the chat starts.
+
 ## [1.9.0] - 2026-11-10
 
 ### Added

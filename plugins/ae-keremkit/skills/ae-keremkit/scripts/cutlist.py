@@ -22,7 +22,8 @@ Commands
   undo    cut.json                            revert the last edit
   zoom    cut.json [--levels 100 110] [--emphasis subs.json] -o zoom.json
                                               jump-cut zoom framing per segment + the AE Scale expression
-  export  cut.json --format edl|fcpxml -o FILE    timeline for Premiere / Resolve / Final Cut
+  export  cut.json --format xmeml|edl|fcpxml -o FILE
+                                              xmeml = Premiere (FCP7 XML, linked); fcpxml = Final Cut / Resolve
   render  cut.json -o OUT [--crf N] [--x264-preset P] [--run]
                                               build (and with --run, execute) the ffmpeg render
 
@@ -216,19 +217,22 @@ def detect_silences(media, max_pause, noise_db=None, words=None, rel_db=-10.0):
     Whisper's word ends often run into the following pause, so cutting on words alone leaves part of
     every pause in. The threshold is relative to the speech itself: the median level of the frames
     inside Whisper's words, minus rel_db (default 10 dB). An explicit noise_db overrides it.
-    Returns ([(start, end)], threshold_db) or (None, None) when ffmpeg/audio is unavailable."""
+    Returns ([(start, end)], threshold_db) or (None, None) when ffmpeg/audio is unavailable.
+    The envelope and the speech median are kept in LAST for the wordless-audio check."""
+    LAST.clear()
     env = audio_db(media)
     if env is None:
         return None, None
     hop = 0.01
+    speech = []
+    for s, e in (words or []):
+        speech.extend(env[int(s / hop):int(e / hop) + 1])
+    if not speech:
+        speech = list(env)
+    speech.sort()
+    median = speech[len(speech) // 2]
+    LAST.update(env=env, median=median, hop=hop)
     if noise_db is None:
-        speech = []
-        for s, e in (words or []):
-            speech.extend(env[int(s / hop):int(e / hop) + 1])
-        if not speech:
-            speech = env
-        speech.sort()
-        median = speech[len(speech) // 2]
         noise_db = max(-60.0, min(-20.0, median + rel_db))
     out, start = [], None
     min_len = max(0.05, max_pause)
@@ -241,6 +245,25 @@ def detect_silences(media, max_pause, noise_db=None, words=None, rel_db=-10.0):
                 out.append((start * hop, k * hop))
             start = None
     return out, noise_db
+
+
+LAST = {}
+
+
+def loud_wordless(regions, min_len=1.0, below_median_db=6.0):
+    """Non-silent regions with no words that are as loud as speech (music, a laugh, an unheard line).
+    Whisper sometimes misses whole sentences; dropping these silently loses real audio."""
+    env, median, hop = LAST.get("env"), LAST.get("median"), LAST.get("hop", 0.01)
+    if not env:
+        return []
+    out = []
+    for x, y in regions:
+        if y - x < min_len:
+            continue
+        seg = sorted(env[int(x / hop):int(y / hop)])
+        if seg and seg[len(seg) // 2] >= median - below_median_db:
+            out.append((round(x, 2), round(y, 2), round(seg[len(seg) // 2], 1)))
+    return out
 
 
 def subtract(intervals, holes):
@@ -293,10 +316,15 @@ def cmd_build(a):
     if silences == []:
         mode = "words only (audio has no pauses below the threshold)"
         silences = None
+    loud = []
     if silences:
         # speech = audio that is not silent, kept only where Whisper heard words (drops coughs, clicks, noise)
-        speech = subtract([[0.0, dur]], [(x, min(y, dur)) for x, y in silences])
-        speech = [iv for iv in speech if any(w[0] < iv[1] and w[1] > iv[0] for w in word_iv)]
+        sounding = subtract([[0.0, dur]], [(x, min(y, dur)) for x, y in silences])
+        speech = [iv for iv in sounding if any(w[0] < iv[1] and w[1] > iv[0] for w in word_iv)]
+        # wordless audio as loud as the speaker for > 1 s is kept (not dropped as noise) unless asked
+        loud = loud_wordless([iv for iv in sounding if iv not in speech])
+        if loud and not a.drop_wordless:
+            speech = sorted(speech + [[x, y] for x, y, _ in loud])
         raw = [[x - p["pad_before"], y + p["pad_after"]] for x, y in speech]
         mode = f"audio+words (silence < {noise:.0f} dB)"
     else:
@@ -323,6 +351,9 @@ def cmd_build(a):
     print(f"OK segments={len(cl['segments'])} source={fmt(dur)}s output={fmt(cl['out_duration'])}s "
           f"removed={fmt(removed)}s ({removed / dur * 100:.0f}%) preset={a.preset} mode={mode}"
           + (f" repeats_removed={n_rem} ({rep_s:.1f}s)" if n_rem else ""))
+    for x, y, lv in loud:
+        print(f"WARN loud audio without words {fmt(x)}-{fmt(y)}s ({lv} dB) "
+              + ("REMOVED (--drop-wordless)" if a.drop_wordless else "KEPT - ask the user; --drop-wordless removes it"))
 
 
 def cmd_show(a):
@@ -565,18 +596,115 @@ def cmd_zoom(a):
     print("SCALE_EXPRESSION " + expr)
 
 
+def frame_segments(cl, fps, start=0.0):
+    """Source frames per segment and contiguous record frames: every event's source length equals its
+    record length (rounding source and record times separately gave 1-frame mismatches)."""
+    rec = int(round(start * fps))
+    rows = []
+    for s in cl["segments"]:
+        a0, b0 = int(round(s["src_in"] * fps)), int(round(s["src_out"] * fps))
+        if b0 <= a0:
+            continue
+        rows.append((a0, b0, rec, rec + b0 - a0))
+        rec += b0 - a0
+    return rows
+
+
+def tcf(f, fps):
+    r = int(round(fps))
+    return f"{f // (3600 * r):02d}:{f // (60 * r) % 60:02d}:{f // r % 60:02d}:{f % r:02d}"
+
+
+def probe_av(media):
+    """(width, height, sample_rate, channels) via ffprobe; defaults when unavailable."""
+    w, h, sr, ch = 1920, 1080, 48000, 2
+    if shutil.which("ffprobe") and os.path.exists(media):
+        try:
+            info = json.loads(subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height,sample_rate,channels",
+                 "-of", "json", media], capture_output=True, text=True, check=True).stdout)
+            for st in info.get("streams", []):
+                if st.get("codec_type") == "video" and st.get("width"):
+                    w, h = int(st["width"]), int(st["height"])
+                elif st.get("codec_type") == "audio" and st.get("sample_rate"):
+                    sr, ch = int(st["sample_rate"]), int(st.get("channels") or 2)
+        except Exception:
+            pass
+    return w, h, sr, ch
+
+
+def xmeml(cl, fps, title):
+    """FCP7 XML (xmeml v4) that Premiere imports linked: one master clip (file defined once, the rest
+    reference file-1), V1 + one audio track, contiguous integer frames."""
+    from urllib.parse import quote
+    from xml.sax.saxutils import escape
+    media = cl["media"]
+    clip = escape(os.path.basename(media))
+    W, H, SR, CH = probe_av(media)
+    tb = int(round(fps))
+    ntsc = "TRUE" if abs(fps - round(fps)) > 0.001 else "FALSE"
+    rate = f"<rate><timebase>{tb}</timebase><ntsc>{ntsc}</ntsc></rate>"
+    url = escape("file://localhost/" + quote(media.replace("\\", "/").lstrip("/"), safe="/:"))
+    dur = int(round(cl["duration"] * fps))
+    tcode = f"<timecode>{rate}<string>00:00:00:00</string><frame>0</frame><displayformat>NDF</displayformat></timecode>"
+    has_v = cl.get("has_video", True) is not False
+    has_a = cl.get("has_audio", True) is not False
+    vchar = (f"<samplecharacteristics>{rate}<width>{W}</width><height>{H}</height>"
+             "<pixelaspectratio>square</pixelaspectratio></samplecharacteristics>")
+    achar = f"<samplecharacteristics><depth>16</depth><samplerate>{SR}</samplerate></samplecharacteristics>"
+    file_full = (f'<file id="file-1"><name>{clip}</name><pathurl>{url}</pathurl>{rate}<duration>{dur}</duration>{tcode}'
+                 "<media>" + (f"<video>{vchar}</video>" if has_v else "")
+                 + (f"<audio>{achar}<channelcount>{CH}</channelcount></audio>" if has_a else "") + "</media></file>")
+    rows = frame_segments(cl, fps)
+    V, A = [], []
+    for i, (a0, b0, r0, r1) in enumerate(rows, 1):
+        links = ""
+        if has_v and has_a:
+            links = (f"<link><linkclipref>v{i}</linkclipref><mediatype>video</mediatype><trackindex>1</trackindex>"
+                     f"<clipindex>{i}</clipindex></link><link><linkclipref>a{i}</linkclipref><mediatype>audio</mediatype>"
+                     f"<trackindex>1</trackindex><clipindex>{i}</clipindex><groupindex>1</groupindex></link>")
+        base = (f"<name>{clip}</name><enabled>TRUE</enabled><duration>{dur}</duration>{rate}"
+                f"<start>{r0}</start><end>{r1}</end><in>{a0}</in><out>{b0}</out>")
+        first = file_full if i == 1 else '<file id="file-1"/>'
+        if has_v:
+            V.append(f'<clipitem id="v{i}">{base}{first}{links}</clipitem>')
+        if has_a:
+            f = first if not has_v else '<file id="file-1"/>'
+            A.append(f'<clipitem id="a{i}">{base}{f}<sourcetrack><mediatype>audio</mediatype>'
+                     f"<trackindex>1</trackindex></sourcetrack>{links}</clipitem>")
+    total = rows[-1][3] if rows else 0
+    media_xml = ""
+    if has_v:
+        media_xml += f"<video><format>{vchar}</format><track>{''.join(V)}</track></video>"
+    if has_a:
+        media_xml += (f"<audio><numOutputChannels>2</numOutputChannels><format>{achar}</format>"
+                      f"<track>{''.join(A)}</track></audio>")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xmeml>\n<xmeml version="4"><sequence id="seq-1">'
+            f"<name>{escape(title)}</name><duration>{total}</duration>{rate}{tcode}<media>{media_xml}</media>"
+            "</sequence></xmeml>"), len(rows), total
+
+
 def cmd_export(a):
     cl = load(a.cutlist)
     fps = a.fps or cl.get("fps") or 30
     media = cl["media"]
     clip = os.path.basename(media)
     out = []
+    if a.format == "xmeml":
+        text, n, frames = xmeml(cl, fps, a.title or os.path.splitext(clip)[0] + "_cut")
+        with open(a.output, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text + "\n")
+        print(f"OK xmeml clips={n} frames={frames} fps={fps:g} -> {a.output} "
+              "(Premiere: File > Import; HDR source -> set Color Setup after import, see premiere.md)")
+        return
     if a.format == "edl":
+        # one source, one stereo/mono audio track -> track B (V + A1); reel = clip name
+        reel = re.sub(r"[^A-Z0-9_]", "", os.path.splitext(clip)[0].upper())[:8] or "AX"
         out += [f"TITLE: {a.title or os.path.splitext(clip)[0]}", "FCM: NON-DROP FRAME", ""]
-        for i, s in enumerate(cl["segments"], 1):
-            out.append(f"{i:03d}  AX       AA/V  C        {tc(s['src_in'], fps)} {tc(s['src_out'], fps)} "
-                       f"{tc(s['out_in'] + a.start, fps)} {tc(s['out_out'] + a.start, fps)}")
+        for i, (a0, b0, r0, r1) in enumerate(frame_segments(cl, fps, a.start), 1):
+            out.append(f"{i:03d}  {reel:<8} B     C        {tcf(a0, fps)} {tcf(b0, fps)} {tcf(r0, fps)} {tcf(r1, fps)}")
             out.append(f"* FROM CLIP NAME: {clip}")
+            out.append(f"* SOURCE FILE: {media}")
             out.append("")
     else:
         num, den = (1001, int(round(fps * 1001))) if abs(fps - round(fps)) > 0.001 else (1, int(round(fps)))
@@ -619,6 +747,8 @@ def main():
                    help="silence = quieter than the speech median by this much (default -10 dB)")
     b.add_argument("--remove", help="removals JSON from transcript.py repeats (repeats, false starts, fillers)")
     b.add_argument("--include-uncertain", action="store_true", help="also remove low-confidence repeats")
+    b.add_argument("--drop-wordless", action="store_true",
+                   help="also remove wordless audio as loud as speech (default: keep it and warn)")
     b.add_argument("-o", "--output", required=True)
     s = sp.add_parser("show")
     s.add_argument("cutlist")
@@ -666,7 +796,9 @@ def main():
     z.add_argument("-o", "--output", required=True)
     ex = sp.add_parser("export")
     ex.add_argument("cutlist")
-    ex.add_argument("--format", choices=["edl", "fcpxml"], default="edl")
+    ex.add_argument("--format", choices=["xmeml", "edl", "fcpxml"], default="xmeml",
+                    help="xmeml = FCP7 XML for Premiere (linked media, preferred); edl = CMX3600 (Premiere links "
+                         "media by hand); fcpxml = Final Cut Pro / Resolve")
     ex.add_argument("--fps", type=float)
     ex.add_argument("--start", type=float, default=0.0, help="record timecode offset (s)")
     ex.add_argument("--title")

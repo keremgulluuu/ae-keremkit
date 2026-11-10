@@ -150,19 +150,38 @@ def src_to_out(cut, t):
     return None
 
 
+def kept_part(cut, s, e):
+    """Largest overlap of the word [s, e] with a kept segment -> (out_start, out_end, overlap_s)."""
+    best = None
+    for seg in cut["segments"]:
+        x, y = max(s, seg["src_in"]), min(e, seg["src_out"])
+        if y - x > 1e-6 and (best is None or y - x > best[2]):
+            best = (seg["out_in"] + x - seg["src_in"], seg["out_in"] + y - seg["src_in"], y - x)
+    return best
+
+
 def place(words, cut, frm, to, at, zone):
-    """Map words (source time) -> cut output time -> final timeline; drop removed words."""
+    """Map words (source time) -> cut output time -> final timeline; drop removed words.
+
+    Whisper often starts a word inside the pause before it. When that pause was cut, the word's
+    middle can fall in the removed part although its sound is kept - such a word is kept on its
+    kept part (>= 60 % of the word or >= 0.25 s inside one kept segment). Only words that are
+    really gone (retakes, repeats) are dropped."""
     res = []
     for s, e, t in words:
         if cut:
             mid = (s + e) / 2
             if src_to_out(cut, mid) is None:
-                continue
-            os_ = src_to_out(cut, s)
-            oe = src_to_out(cut, e)
-            om = src_to_out(cut, mid)
-            s2 = os_ if os_ is not None else om
-            e2 = oe if oe is not None else om
+                part = kept_part(cut, s, e)
+                if part is None or (part[2] < 0.25 and part[2] < 0.6 * (e - s)):
+                    continue
+                s2, e2 = part[0], part[1]
+            else:
+                os_ = src_to_out(cut, s)
+                oe = src_to_out(cut, e)
+                om = src_to_out(cut, mid)
+                s2 = os_ if os_ is not None else om
+                e2 = oe if oe is not None else om
         else:
             s2, e2 = s, e
         if s2 < frm - 1e-6 or (to is not None and s2 >= to - 1e-6):

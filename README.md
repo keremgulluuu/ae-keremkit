@@ -27,6 +27,8 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 - **Learn from a reference video.** A finished video becomes a small package — shots, motion, colours, audio hits and time-stamped contact sheets — so Claude can pick up its style for a few thousand tokens.
 - **Copy a look.** Point at a screenshot, a web page, CSS, an SVG, a Lottie file or a project. Its palette, type, radii, glows and easing become tokens you confirm, then an After Effects theme.
 - **Techniques on tap.** Ask "what can you do with the sound?" or "add some cuts" and get the options by name — loudness normalization, noise reduction, ducking, J-cut, L-cut, jump-cut zoom and more — with a one-line explanation each. Add your own techniques the same way.
+- **Premiere Pro too.** A cut goes to Premiere as an XML that imports with the media linked. With a Premiere MCP, Claude builds the sequence itself (cuts, effects, sound effects, export) on a copy of the project, and it can learn an edit style from a finished `.prproj`.
+- **Download footage that imports.** Videos from YouTube, TikTok, Instagram and other sites, in the quality you name. *Premiere fix* downloads H.264 so Premiere takes it right away; *4K + repair* keeps 4K/60 and re-encodes it to H.264 so Premiere takes that too. Files that Premiere refuses can be repaired the same way.
 - **Clean, organised projects.** Layers are named, ordered and colour-labelled after every edit (your rules), a quality check runs before the final render, and one edit becomes 16:9, 9:16 and 1:1 versions.
 - **Preferences that stick.** Nothing is assumed. Each choice is asked once, when it matters, and remembered.
 - **Safety nets.** Numbered checkpoints before risky operations, standard layer naming, safe-area checks, a log of solved problems so the same error never costs time twice.
@@ -46,6 +48,8 @@ The skill itself never changes after you install it. Everything you teach it liv
 | **Claude** | Claude Code, or the Claude desktop app with access to your computer. |
 | **Python** | 3.9 or newer. The tools use only the standard library. |
 | **ffmpeg** | For cutting. `ffprobe` should be on the PATH too. |
+| **Premiere MCP** | Optional, for Premiere Pro: [`premiere-pro-mcp`](https://github.com/leancoderkavy/premiere-pro-mcp). Install it before starting the chat. |
+| **yt-dlp** | Optional, for downloads. KeremKit installs it into its own folder the first time you ask for a video. |
 | **Whisper** | Optional, for subtitles: [openai-whisper](https://github.com/openai/whisper), [faster-whisper](https://github.com/SYSTRAN/faster-whisper) or whisper.cpp. |
 
 ## Installation
@@ -144,7 +148,8 @@ plugins/ae-keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
     scripts/                           transcript, cutlist, subtitles, editplan, audio, sfx, qc,
-                                       techniques, tokens, presets, videoref, previews, assets, keremkit, digest
+                                       techniques, tokens, presets, videoref, previews, assets, keremkit, digest,
+                                       prproj, download
     assets/                            example style, tokens and library metadata
 docs/                                  user documentation
 examples/                              sample style, plan and subtitle rules

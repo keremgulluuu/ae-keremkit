@@ -55,9 +55,19 @@ Show this summary with the question:
 | **turbo** (large-v3-turbo) | fast | close to large | ~6 GB VRAM - best balance |
 | large-v3 | slowest | best | ~10 GB VRAM |
 
-Save `subtitles.engine = "whisper"`, `tools.whisper.model`, and a language if the user names one (`tools.whisper.language`, e.g. "en"; null = auto-detect). Detailed line/word rules are **not** asked here - they come the first time subtitles are built (`subtitles.md`).
+**Never pick the model yourself** - not even "turbo" as an obvious default. `tools.whisper.model` stays null until the user chooses; if it is still null at the first transcription, ask then (model, and the path if Whisper was not found).
+
+Save `subtitles.engine = "whisper"`, the model the user chose in `tools.whisper.model`, and a language if the user names one (`tools.whisper.language`, e.g. "en"; null = auto-detect). Detailed line/word rules are **not** asked here - they come the first time subtitles are built (`subtitles.md`).
 
 Installing Whisper: give the one command that fits their setup (e.g. `pip install -U openai-whisper`; it needs ffmpeg) and ask before running anything that installs software.
+
+## MCP servers (After Effects, Premiere)
+
+The `aftereffects` MCP is required; a Premiere MCP (`premiere-pro`) is optional (`premiere.md`). **Install MCP servers before starting the chat**: servers registered while a session runs are not loaded into it - after installing one, the user starts a new chat. Say this in one line whenever an install happens mid-chat.
+
+## Video downloads (when first needed, not at setup)
+
+The first time the user wants a video from YouTube, TikTok, Instagram or another site: `download.py setup` (installs yt-dlp into `KeremKit/tools/bin/`), then `downloads.md`. Download preferences (`download.*`) are asked then, not here.
 
 ## 5. Finish
 
