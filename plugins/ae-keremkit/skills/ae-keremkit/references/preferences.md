@@ -36,6 +36,8 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `design_import.preview` | first time a look is copied from an image | see `design-import.md` (HTML preview question) |
 | `library.preview_repair` | broken previews found by `previews.py scan` | see `previews.md` -> Repairing old previews (`never` = don't ask again) |
 | `design.plan` | default `big` - never asked; changed when the user says so ("don't ask, just build" -> `off`; "always show me the plan" -> `always`) | `design-plan.md` |
+| `logos.confirm` | default `ask`; `off` when the user says logos may be added without asking | `assets.md` -> Logos |
+| `assets.allow_attribution` | default false; true when the user accepts items that need a credit | `assets.md` |
 | `audio.target_lufs` | first audio processing without a known destination | "Where will this be published? (YouTube -14 LUFS, podcast -16, broadcast -23)" |
 | `formats.targets` | first multi-format request | "Which formats do you publish to? (16:9, 9:16, 1:1, 4:5)" |
 | `qc.mode` | default `ask` | "Should I always run the quality check before the final render?" |

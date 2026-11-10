@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.7.0"
+KIT_VERSION = "1.8.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -104,7 +104,9 @@ DEFAULT_PREFS = {
     "publish": {"chapters": None, "thumbnails": None},
     "design_import": {"preview": None},
     "library": {"preview_repair": None},
-    "design": {"plan": "big"},              # always | big (several parts) | off - plan and ask before designing   # ask | never - offer to re-render broken previews
+    "design": {"plan": "big"},
+    "logos": {"confirm": "ask"},            # ask | off - add logos of named brands without asking
+    "assets": {"allow_attribution": False},  # also list free items that need a credit (CC BY)              # always | big (several parts) | off - plan and ask before designing   # ask | never - offer to re-render broken previews
     "standards": {
         "safe_area": {"action": 0.93, "title": 0.90},
         "vertical_ui_margin_px": {"top": 220, "bottom": 380, "right": 140, "left": 60},
@@ -244,7 +246,7 @@ def cmd_init(a):
 
 
 TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "editplan.py", "audio.py", "sfx.py", "qc.py",
-         "techniques.py", "tokens.py", "presets.py", "videoref.py", "previews.py", "digest.py", "techniques.json")
+         "techniques.py", "tokens.py", "presets.py", "videoref.py", "previews.py", "assets.py", "digest.py", "techniques.json")
 
 LEARNING_FILES = {
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"

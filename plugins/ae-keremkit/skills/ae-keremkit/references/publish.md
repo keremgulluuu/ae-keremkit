@@ -21,7 +21,7 @@ From the corrected transcript: 3-5 title options (under ~60 characters, the main
 
 ## Logos and brand marks
 
-Use a logo only when that name is actually said or shown in the video, and get the user's OK for the list first. Prefer the official press kit or Wikimedia Commons (its `Special:FilePath/<file>.svg?width=512` gives a PNG render); note file, source page and licence in `<project>/assets/logos/SOURCES.md`. Never recolour or alter a logo beyond a single-colour version for dark backgrounds.
+Use a logo only when that name is actually said or shown in the video, or the user asks for it. Preference `logos.confirm`: `ask` (default) - get the user's OK for the list first; `off` - add them without asking and name them in one line of the report. Get them with `assets.py logo <Brand> -o <project>/assets/logos` (`assets.md`), or the official press kit; `SOURCES.md` records file, source and licence. Never recolour or alter a logo beyond a single-colour version for dark backgrounds, and don't make the video look sponsored.
 
 ## Finishing in another editor
 

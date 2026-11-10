@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] - 2026-11-10
+
+### Added
+- `assets.py`: free stock elements from many sources in one search - photo, video, green screen, overlay, background (Pexels, Pixabay, Wikimedia Commons, Openverse), sound effects and music (Freesound CC0, Openverse audio), icons (Iconify, permissive sets only), logos (Dashboard Icons, Simple Icons), textures, HDRIs and 3D models (Poly Haven), fonts (Fontsource). Only licences that need no credit by default; compact numbered results, 24 h cache, thumbnails in one image for the user, `get` downloads the picks and records them in `SOURCES.md`.
+- `assets.py logo` adds brand logos in one step; preference `logos.confirm: off` adds logos of named brands without asking.
+- `assets.py links` / `import` for sites without an API (Mixkit templates and MOGRT, Pixabay music and sound effects, YouTube Audio Library, Kenney).
+- Free API keys (Pexels, Pixabay, Freesound) stay in `KeremKit/settings/keys.json`.
+- Design plans offer free stock elements before building from scratch.
+
 ## [1.7.0] - 2026-11-10
 
 ### Changed

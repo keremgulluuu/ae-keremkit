@@ -20,6 +20,7 @@ One line per hit: `good` (all words matched) or `partial`, score, id, name, summ
 |---|---|
 | A `good` hit that does the job | use it (low cost) |
 | A `partial` hit, or a good one that could clearly be better | use it, **or** build it from scratch in a stated better way (medium / high cost) |
+| No useful hit, but a free stock element fits (footage, overlay, sound, icon, logo) | `assets.py search` - offer it (low cost), or build it (`assets.md`) |
 | No useful hit | ask whether to build it from scratch (medium / high cost) |
 | A technique rather than an element (a cut, a flash, a zoom) | `techniques.py search`, no library item needed |
 

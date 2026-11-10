@@ -38,6 +38,7 @@ TOOLS = (
     "presets.py",
     "videoref.py",
     "previews.py",
+    "assets.py",
     "digest.py",
 )
 ASSET_FILES = ("techniques.json",)
@@ -195,7 +196,7 @@ def test_runtime_scripts_only_import_the_standard_library():
                 offenders.extend(
                     f"{name}: {module}"
                     for module in modules
-                    if module and module not in stdlib
+                    if module and module not in stdlib and f"{module}.py" not in os.listdir(folder)
                 )
     assert not offenders, "third-party imports in shipped scripts:\n" + "\n".join(offenders)
 
