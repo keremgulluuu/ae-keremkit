@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-11-10
+
+### Fixed
+- **Library saves can no longer touch the user's project.** `project.reduce` runs only on a shell work copy (`keremkit.py safe-copy`), every save is proven on disk (`keremkit.py stat`), and the pack loop reopens the work file instead of trusting `project.undo`. Follows a real incident where a save overwrote a project.
+- Blank library previews: the old "one frame at 65 %" rule often caught transparent or empty moments.
+- Outdated tools in the KeremKit folder went unnoticed (e.g. `add` asking for `name_tr`/`name_en`); the skill now checks `keremkit.py version` once per session and updates them.
+
+### Added
+- `previews.py`: finds broken previews (`scan`: size, pixels and identical images), reads probe frames as numbers to tell static, animated and continuously moving items apart (`pick`), and builds a 6-frame preview over a dark backdrop (`sheet`). Claude offers once to repair broken previews; `library.preview_repair: never` turns the question off.
+- Stop rules: an unexpected tool response stops all AE calls, saves a rescue copy and asks.
+- Only verified facts: no recovery or backup advice that wasn't checked on the user's machine.
+- Troubleshooting: lost or overwritten project files; MCP behaviours seen in real use.
+- `keremkit.py version`, `stat`, `safe-copy`.
+
 ## [1.4.0] - 2026-11-10
 
 ### Added

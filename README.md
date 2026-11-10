@@ -21,7 +21,7 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 - **Tight cutting you can tweak.** Pauses are found in the real audio and confirmed with Whisper's words; retakes, repeated phrases and filler sounds are removed, keeping the take you finished. Every cut stays editable: *"0:10–0:12 is cut too fast, add a second"* is one command, not a re-edit.
 - **A transcript that's actually right.** Claude reads the transcript with the video's topic in mind and fixes mis-heard words ("Cloud" → "Claude"). Everything it changed comes back as a `time – old – new` list, and anything it isn't sure about is asked first.
 - **Subtitles with real rules.** Words per line, lines per cue, sentence-aware splitting, what to do with a leftover word, highlighted keywords and numbers, different positions for different parts of the video. One text layer in AE reads a data file, so changing a rule never touches your timeline.
-- **A design library.** Save a counter, a title, a transition; place it later by name in English or your own language, with its parameters (*"gold counter, 0 to 25,000, at 2 seconds"*).
+- **A design library.** Save a counter, a title, a transition; place it later by name in English or your own language, with its parameters (*"gold counter, 0 to 25,000, at 2 seconds"*). Animated items get a 6-frame preview, chosen by measuring where the motion is.
 - **Learns your presets.** Point it at your `.ffx` folder. Every preset becomes a card with its effects, keyframes and expressions, and the ones that need third-party plugins are marked. Ask "which presets use Deep Glow?" and get a real answer.
 - **Edit plans on words.** For voice-led edits, the edit is written as shots that start on spoken words, checked for rhythm (shot lengths, repeated clips, two talking shots in a row) and turned into frame-exact times. Changing a cut is one number.
 - **Learn from a reference video.** A finished video becomes a small package — shots, motion, colours, audio hits and time-stamped contact sheets — so Claude can pick up its style for a few thousand tokens.
@@ -102,7 +102,8 @@ Talk to Claude normally, in any language. Some things you can say:
 | *Bring back 1:20–1:25 from the original.* | That source range returns to the edit |
 | *Add subtitles, 3–4 words, two lines, highlight numbers.* | Rules saved, one data-driven subtitle layer added |
 | *Captions should sit higher during the voice-over.* | Zone-based position updated, nothing else touched |
-| *Save this as "gold counter".* | Saved to the library with parameters and a preview |
+| *Save this as "gold counter".* | Saved to the library with parameters and a preview, without touching your project file |
+| *Fix the empty previews in my library.* | Broken previews found and re-rendered (Claude also offers this when it finds them) |
 | *Gold counter, 0 to 25,000, starting at 2 seconds.* | Found, configured, placed — no redesign |
 | *Edit `D:\Shoot\0412` in my Kerem style, vertical.* | Style summary for confirmation, then the full edit |
 | *Use the look of the top poster in `promo.html`, ignore the rest.* | Tokens extracted from that part only, confirmed, then built |
@@ -141,7 +142,7 @@ plugins/ae-keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
     scripts/                           transcript, cutlist, subtitles, editplan, audio, sfx, qc,
-                                       techniques, tokens, presets, videoref, keremkit, digest
+                                       techniques, tokens, presets, videoref, previews, keremkit, digest
     assets/                            example style, tokens and library metadata
 docs/                                  user documentation
 examples/                              sample style, plan and subtitle rules

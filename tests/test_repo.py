@@ -37,6 +37,7 @@ TOOLS = (
     "tokens.py",
     "presets.py",
     "videoref.py",
+    "previews.py",
     "digest.py",
 )
 ASSET_FILES = ("techniques.json",)

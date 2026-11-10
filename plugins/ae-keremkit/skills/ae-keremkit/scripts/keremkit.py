@@ -22,6 +22,9 @@ bookkeeping on the user's computer and prints only short results.
   pack   [--items ID ...] [--styles SLUG ...] [--all] -o share.zip   package styles/items to share
   unpack share.zip                        import a package (ids renumbered on clashes; fonts/plugins listed)
   summary                                 counts per category
+  version                                 the kit version of this copy (compare with the skill's)
+  stat     PATH [PATH ...]                size, modified time and short hash - proof a save really happened
+  safe-copy SRC DST [--overwrite]         shell copy of a project before anything destructive (verified)
 
 All commands except `where`/`init` use the home from the pointer file; pass --home to override.
 """
@@ -35,6 +38,7 @@ import sys
 import unicodedata
 from datetime import date
 
+KIT_VERSION = "1.5.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -94,6 +98,7 @@ DEFAULT_PREFS = {
     "qc": {"mode": "ask"},
     "publish": {"chapters": None, "thumbnails": None},
     "design_import": {"preview": None},
+    "library": {"preview_repair": None},   # ask | never - offer to re-render broken previews
     "standards": {
         "safe_area": {"action": 0.93, "title": 0.90},
         "vertical_ui_margin_px": {"top": 220, "bottom": 380, "right": 140, "left": 60},
@@ -233,7 +238,7 @@ def cmd_init(a):
 
 
 TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "editplan.py", "audio.py", "sfx.py", "qc.py",
-         "techniques.py", "tokens.py", "presets.py", "videoref.py", "digest.py", "techniques.json")
+         "techniques.py", "tokens.py", "presets.py", "videoref.py", "previews.py", "digest.py", "techniques.json")
 
 LEARNING_FILES = {
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"
@@ -253,6 +258,12 @@ LEARNING_FILES = {
                        "- Cause: two AE calls sent at the same time.\n- Fix: one AE call at a time; instance.dismiss_dialog, retry.\n\n"
                        "## [rename, project.rename] Some names were not changed\n"
                        "- Cause: project.rename with a map can skip names in big batches.\n- Fix: recheck counts, fix the rest with item.set_props by id.\n\n"
+                       "## [reduce, project.open, save, undo, lost] Never reduce the user's project\n"
+                       "- Symptom: a library save overwrote the user's project with a reduced copy.\n"
+                       "- Cause: project.reduce ran on the open original; Save As reported saved:true without writing; "
+                       "undo did not restore the reduce; project.open then wrote over the file.\n"
+                       "- Fix: safe-copy the .aep first, open the copy, check project.file; stat after every save; "
+                       "reopen the work copy instead of undo. Unexpected state -> stop and ask.\n\n"
                        "## [json, sourceData, subtitles] Subtitle expression error 'footage not found'\n"
                        "- Cause: footage() name differs from the imported item name.\n- Fix: use the exact project item name (with extension).\n",
 }
@@ -599,6 +610,48 @@ def cmd_doctor(a):
     print("NOTE\tAfter Effects: Claude checks the MCP connection with ae_context")
 
 
+def cmd_version(a):
+    print(f"KeremKit {KIT_VERSION}")
+
+
+def file_stat(path):
+    import hashlib
+    from datetime import datetime
+    st = os.stat(path)
+    with open(path, "rb") as f:
+        digest = hashlib.md5(f.read()).hexdigest()[:10]
+    return st.st_size, datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"), digest
+
+
+def cmd_stat(a):
+    bad = False
+    for p in a.paths:
+        if os.path.isfile(p):
+            size, mtime, digest = file_stat(p)
+            print(f"OK\t{p}\t{size} B\t{mtime}\t{digest}")
+        else:
+            bad = True
+            print(f"MISSING\t{p}")
+    if bad:
+        sys.exit(1)
+
+
+def cmd_safe_copy(a):
+    src, dst = os.path.abspath(a.src), os.path.abspath(a.dst)
+    if not os.path.isfile(src):
+        sys.exit(f"ERROR: not found: {src}")
+    if os.path.normcase(src) == os.path.normcase(dst):
+        sys.exit("ERROR: source and destination are the same file")
+    if os.path.exists(dst) and not a.overwrite:
+        sys.exit(f"ERROR: {dst} exists - pick a new name (or --overwrite for your own work copy)")
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copy2(src, dst)
+    s1, d1 = file_stat(src), file_stat(dst)
+    if s1[0] != d1[0] or s1[2] != d1[2]:
+        sys.exit(f"ERROR: copy does not match the source ({d1[0]} vs {s1[0]} B)")
+    print(f"OK\t{dst}\t{d1[0]} B\t{d1[1]}\tsource untouched: {src}")
+
+
 def inside(home, rel):
     """True when rel (a catalog/manifest folder) stays inside home."""
     if not rel or os.path.isabs(rel) or re.match(r"^[A-Za-z]:", rel) or ".." in rel.replace("\\", "/").split("/"):
@@ -760,13 +813,20 @@ def main():
     up = sp.add_parser("unpack")
     up.add_argument("file")
     sp.add_parser("summary")
+    sp.add_parser("version")
+    st = sp.add_parser("stat")
+    st.add_argument("paths", nargs="+")
+    sc = sp.add_parser("safe-copy")
+    sc.add_argument("src")
+    sc.add_argument("dst")
+    sc.add_argument("--overwrite", action="store_true")
     a = ap.parse_args()
     if a.cmd == "cat" and a.action == "add" and not all([a.key, a.prefix, a.name]):
         ap.error("cat add needs --key --prefix --name")
     {"where": cmd_where, "init": cmd_init, "pref": cmd_pref, "cat": cmd_cat, "search": cmd_search,
      "new-id": cmd_new_id, "add": cmd_add, "style-archive": cmd_style_archive,
      "validate": cmd_validate, "reindex": cmd_reindex, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
-     "unpack": cmd_unpack}[a.cmd](a)
+     "unpack": cmd_unpack, "version": cmd_version, "stat": cmd_stat, "safe-copy": cmd_safe_copy}[a.cmd](a)
 
 
 if __name__ == "__main__":
