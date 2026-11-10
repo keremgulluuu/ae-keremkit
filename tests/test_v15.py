@@ -165,3 +165,76 @@ def test_plan_searches_every_part(tmp_path):
     assert "PART 1\tintro\t1 hit(s)" in out and "good\t" in out and "TXT-001" in out and "preview: check" in out
     assert "PART 2\toutro\t0 hit(s)" in out
     assert run("keremkit.py", "--home", kk, "pref", "get", "design.plan").stdout.strip() in ('"big"', "big")
+
+
+def test_queue_and_auto_two_passes(tmp_path):
+    kk = tmp_path / "KK"
+    for iid in ("UI-001", "UI-002"):
+        d = kk / "library" / "items" / "ui" / f"{iid}_x"
+        d.mkdir(parents=True)
+        (d / "meta.json").write_text(json.dumps({"id": iid, "comp": f"LIB_{iid}", "fps": 10, "duration": 12}), encoding="utf-8")
+    out = run("previews.py", "queue", "UI-001", "UI-002", "--home", kk, "--ae-home", "C:/Users/me/Documents/KeremKit").stdout
+    root = re.search(r"RUN\t(.*)", out).group(1)
+    ops = json.loads(out.split("\n")[2])
+    assert ops[0]["operation"] == "render.clear_queue" and ops[-1]["operation"] == "render.start" and len(ops) == 8
+    assert ops[3]["args"]["outputPath"].startswith("C:/Users/me/Documents/KeremKit/library/_work/previews/")
+    assert ops[2]["args"]["skipFrames"] == 9
+    for k in range(12):                                   # UI-001 black icon (static), UI-002 moves at probes 4-6
+        p1 = os.path.join(root, "UI-001", "p")
+        p2 = os.path.join(root, "UI-002", "p")
+        os.makedirs(p1, exist_ok=True)
+        os.makedirs(p2, exist_ok=True)
+        ff("-f", "lavfi", "-i", "color=c=black@0.0:s=320x180,format=rgba", "-f", "lavfi", "-i", "color=c=black:s=60x60",
+           "-filter_complex", "[0][1]overlay=x=100:y=50,format=rgba", "-frames:v", 1, os.path.join(p1, f"p_{k * 10:05d}.tif"))
+        x = -200 if k < 4 else (180 if k > 6 else k * 30)
+        ff("-f", "lavfi", "-i", "color=c=black@0.0:s=320x180,format=rgba", "-f", "lavfi", "-i", "color=c=white:s=80x80",
+           "-filter_complex", f"[0][1]overlay=x={x}:y=40,format=rgba", "-frames:v", 1, os.path.join(p2, f"p_{k * 10:05d}.tif"))
+    out = run("previews.py", "auto", root).stdout
+    assert "OK\tUI-001\tstatic" in out and "animated_pending=1" in out
+    ops2 = json.loads(out.strip().split("\n")[-2])
+    span = ops2[2]["args"]
+    assert 3.0 <= span["timeSpanStart"] and span["timeSpanStart"] + span["timeSpanDuration"] <= 6.2
+    a = os.path.join(root, "UI-002", "a")
+    os.makedirs(a)
+    for k in range(6):
+        box(os.path.join(a, f"a_{k:05d}.png"), 100 + 16 * k)
+    out = run("previews.py", "auto", root).stdout
+    assert "OK\tUI-002\tanimated\t6 frame(s)" in out
+    m = json.loads((kk / "library" / "items" / "ui" / "UI-002_x" / "meta.json").read_text(encoding="utf-8"))
+    assert m["preview_kind"] == "animated" and len(m["preview_times"]) == 6
+    # dark content got the light backdrop
+    px = subprocess.run(["ffmpeg", "-v", "error", "-i", kk / "library" / "items" / "ui" / "UI-001_x" / "preview.png",
+                         "-vf", "crop=1:1:0:0", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout
+    assert px[0] > 150
+
+
+def test_save_prep_and_check(tmp_path):
+    proj = tmp_path / "Apple Design.aep"
+    proj.write_bytes(b"A" * 500)
+    work = tmp_path / "KK" / "library" / "_work" / "Apple_work.aep"
+    item = tmp_path / "KK" / "library" / "items" / "ui" / "UI-009_x"
+    out = run("keremkit.py", "save-prep", proj, work, "--items", item).stdout
+    assert out.startswith("OK") and work.read_bytes() == proj.read_bytes() and item.is_dir()
+    bad = run("keremkit.py", "save-check", work, "--items", item / "item.aep", check=False)
+    assert bad.returncode == 1 and "NOT WRITTEN" in bad.stdout
+    (item / "item.aep").write_bytes(b"x")
+    assert run("keremkit.py", "save-check", work, "--items", item / "item.aep").stdout.startswith("OK")
+    proj.write_bytes(b"reduced")
+    changed = run("keremkit.py", "save-check", work, check=False)
+    assert changed.returncode == 1 and "PROJECT CHANGED" in changed.stdout
+
+
+def test_add_many(tmp_path):
+    env = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path))
+    kk = tmp_path / "KK"
+    run("keremkit.py", "init", kk, env=env)
+    tsv = tmp_path / "items.tsv"
+    tsv.write_text("id\tcategory\tname\tlocal\ttags\tsummary\tcomp\tsize\tfps\tduration\tpack\toriginal_comp\tfonts\n"
+                   "UI-050\tui\tRed Lock\tKırmızı Kilit\tlock, red, kilit\tA red padlock pops in.\tLIB_UI-050_RedLock\t1080x1920\t29.97\t10\tME v2\tRed Lock\tMontserrat\n"
+                   "UI-051\tui\tSwitch\t\ttoggle\t\tLIB_UI-051\t1080x1920\t30\t5\n", encoding="utf-8")
+    out = run("keremkit.py", "--home", kk, "add-many", tsv).stdout
+    assert "SKIP\tline 3\tmissing summary" in out and "OK\t1 item(s)" in out
+    m = json.loads((kk / "library" / "items" / "ui" / "UI-050_red-lock" / "meta.json").read_text(encoding="utf-8"))
+    assert m["size"] == [1080, 1920] and m["names"]["tr"] == "Kırmızı Kilit" and m["deps"]["fonts"] == ["Montserrat"]
+    assert m["source"]["pack"] == "ME v2"
+    assert "UI-050" in run("keremkit.py", "--home", kk, "search", "kirmizi", "kilit").stdout

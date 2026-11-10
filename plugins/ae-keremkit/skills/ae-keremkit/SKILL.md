@@ -34,7 +34,7 @@ KeremKit/
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
 
-**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.6.0` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.6.0").
+**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.7.0` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.7.0").
 
 **Running the tools:** plain Python (standard library) plus ffmpeg/Whisper, run on the user's computer through whatever access the session has (a device shell, Claude Code's own shell). The same scripts ship in this skill's `scripts/` folder; `keremkit.py init` copies them into `KeremKit/tools/`. Without shell access, stage the needed file(s) into the workspace, run the bundled script there, and write the results back. On Windows the command may be `py` instead of `python`.
 
@@ -66,8 +66,8 @@ In the batch that made the change: `comp.info` (structure, order, timing), `laye
 
 Before anything hard to undo - deleting comps/layers, `project.merge`, `ae_project_import_json`, `project.rename`, a batch above `standards.checkpoint_batch_threshold` ops, starting a style run - save a numbered copy: `ae_save_project(path=<dir>/<Project>_v###.aep)` (highest existing number + 1). At most one per task. Small edits need none: every `ae_do` call is one undo step (`project.undo`). Never delete checkpoints.
 
-- **`project.reduce`** (library saves) never runs on the user's file: `keremkit.py safe-copy` the .aep, open the copy, check the context's `project.file` is the copy. See `references/library-save.md`.
-- **Every `ae_save_project(path=...)`**: create the folder first, then `keremkit.py stat <path>` (exists, size > 0, fresh time) and check `project.file` in the next context. `saved:true` alone is not proof.
+- **`project.reduce`** (library saves) never runs on the user's file: `keremkit.py save-prep` copies it, Claude opens the copy and checks the context's `project.file`. See `references/library-save.md`.
+- **Saves are proven on disk**: `keremkit.py save-check` after a library save or loop (the project unchanged, every file written); a checkpoint `ae_save_project(path=...)` -> `keremkit.py stat <path>`. `saved:true` alone is not proof. Create folders before saving.
 - **`project.undo` cannot be trusted to bring back a reduced project** - reopen the work copy instead.
 
 ## Stop rules
@@ -100,7 +100,9 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | Before the final render, "check everything" | `references/qc.md` |
 | Layer order, names, colour labels | `references/organize.md` |
 | Chapters, titles, thumbnails, export to Premiere/Resolve | `references/publish.md` |
-| Saving something (or a whole project) to the library, new categories, previews, repairing broken previews | `references/library-save.md` |
+| Saving something to the library, new categories | `references/library-save.md` |
+| Saving many items (a template pack) or a whole project | `references/library-pack.md` |
+| Making previews, repairing broken ones | `references/previews.md` |
 | Placing a saved item | `references/library-use.md` |
 | The user asks to check / look / take a screenshot | `references/verification.md` |
 | Project structure, safe areas, motion defaults, render | `references/standards.md` |
@@ -115,4 +117,4 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 - After an edit, tidy the layers (`organize.md`) unless `organize.mode` is off.
 - **Project log:** keep `_keremkit/log.md` next to the project - one dated line per session or milestone (what was done, decisions, open items, the files in use). Read it first when a project is resumed in a new chat; it replaces re-reading the project. Keep it under ~60 lines; summarise older entries.
 - Something seems broken on the user's machine -> `keremkit.py doctor`.
-- First library use in a session -> `previews.py scan --brief`; broken previews -> ask once (`library-save.md` -> Repairing previews).
+- First library use in a session -> `previews.py scan --brief`; broken previews -> ask once (`previews.md` -> Repairing old previews).

@@ -38,7 +38,10 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 | `ERROR: package rejected` on unpack | the package's manifest points outside the KeremKit folder - don't import it; ask where it came from |
 | `keremkit.py version` fails or shows an older version | the tools in `KeremKit/tools/` are outdated: run the skill's `keremkit.py init` (SKILL.md -> Tools up to date) |
 | `missing fields: name_tr, name_en` from `add` | outdated tools (before 1.2) - update them; current `add` needs only `name` (+ `names`) |
-| Library previews black / empty / tiny | `previews.py scan`; repair as in `library-save.md` -> Repairing previews |
+| Library previews black / empty / tiny | `previews.py scan`; repair as in `previews.md` -> Repairing old previews |
+| A save after a dialog left no file (`save-check` says NOT WRITTEN) | the "second script" dialog blocked it: `instance.dismiss_dialog`, `ae_project_info`, save again |
+| Black items vanish in previews | `render.frame` writes no alpha (transparent becomes black): use the render-queue flow in `previews.md` (TIFF with alpha) |
+| Glass / blur / adjustment item renders empty | it needs content under it: preview a `TMP_PREVIEW_<ID>` comp with a gradient solid underneath (`previews.md`) |
 | `previews.py pick` says `blank` | every probe frame was empty: wrong comp, hidden or disabled layers, missing footage, or the comp's content starts later than its duration suggests |
 | Whisper JSON without word times | subtitles fall back to even timing per segment (a WARN says so); re-run Whisper with word timestamps |
 

@@ -16,7 +16,7 @@ Whenever library items are offered - search results, "which animated titles do I
 
 1. `previews.py compare <ID> [<ID> ...] -o <home>/library/_work/compare.png` - each item's preview as a full-width row (1920 px), numbered 1, 2, 3 in the same order as the reply, with its ID and name.
 2. Put that file in the chat with the session's send-file tool (when the file is on the user's computer, bring it into the session first). **Don't open or Read it** - the user looks, Claude doesn't. If the session has no way to send files (e.g. Claude Code in a terminal), give the file's path in one line instead.
-3. `WARN ... preview is empty` -> mention it in the same line and offer to repair (`library-save.md` -> Repairing previews).
+3. `WARN ... preview is empty` -> mention it in the same line and offer to repair (`previews.md` -> Repairing old previews).
 
 Up to 4 items per image; for more, show the best 4 and say how many more there are.
 

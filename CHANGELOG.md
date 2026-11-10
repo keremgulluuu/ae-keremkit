@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - 2026-11-10
+
+### Changed
+- **Library saves use far fewer calls.** `keremkit.py save-prep` (note the project, copy it, create the folders) and `save-check` (project unchanged, every item file written) replace the separate copy / stat / mkdir steps; checks in a pack loop happen once at the end instead of after every item.
+- **Previews through the render queue:** `previews.py queue` prints one batch of ops for any number of items, `previews.py auto` builds static and continuous previews and prints a second batch only for animated ones - 2-4 AE calls in total instead of 2-4 per item. Frames are TIFF with alpha, so black items no longer vanish on black.
+- Previews pick their backdrop: light grey behind dark content, dark grey behind light content.
+- `library-save.md` covers one item only; packs and whole projects moved to `library-pack.md`, previews and repair to `previews.md` - less to read per save.
+
+### Added
+- `keremkit.py add-many items.tsv`: folders, meta.json and catalog rows for many items from one table instead of one hand-written meta.json each.
+- Known issues: a save blocked by the "second script" dialog, glass/adjustment items that render empty alone.
+
 ## [1.6.0] - 2026-11-10
 
 ### Added

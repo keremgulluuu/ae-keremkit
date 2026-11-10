@@ -9,6 +9,10 @@
   sheet  FRAME.png ... -o preview.png [--times T ...] [--kind K] [--meta meta.json] [--thumb W]
                                              tile the frames over a dark backdrop into one preview, then check it
   check  IMAGE.png                           ok / blank for one image
+  queue  ID [ID ...] [--home H] [--ae-home PATH] [--map m.json]
+                                             render-queue ops for one batch: ~12 probe frames per item (TIFF, alpha)
+  auto   RUN                                 read the rendered frames: static / continuous -> preview done;
+                                             animated -> ops for a 2nd batch with 6 frames in the motion; run again
   compare ID [ID ...] -o OUT.png [--home H] [--width W]
                                              several items' previews in one sharp image, numbered 1, 2, 3...
                                              with their ids - to show the user options in the chat
@@ -31,6 +35,7 @@ BLANK_STD = 1.5        # luminance spread (0-255) below this = one flat colour o
 MOVE = 0.4             # mean frame difference (0-255) above this = something moved
 CONTINUOUS = 0.6       # share of probe intervals with movement that makes an item "continuous"
 BACKDROP = "0x262626"  # shown behind transparent items
+LIGHT_BACKDROP = "0xc8c8c8"  # ... when their content is dark (black icons, dark text)
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 
@@ -42,6 +47,46 @@ def png_size(path):
     if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
         raise ValueError(f"not a PNG: {path}")
     return struct.unpack(">II", head[16:24])
+
+
+def image_size(path):
+    """Width, height of a PNG (header) or any image ffprobe can read (TIFF from the render queue)."""
+    try:
+        return png_size(path)
+    except ValueError:
+        pass
+    probe = shutil.which("ffprobe")
+    if probe:
+        r = subprocess.run([probe, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                            "-of", "csv=p=0", path], capture_output=True, text=True)
+        try:
+            w, h = r.stdout.strip().split(",")[:2]
+            return int(w), int(h)
+        except ValueError:
+            pass
+    raise ValueError(f"cannot read the size of {path}")
+
+
+def content_level(paths, width=48):
+    """Mean brightness (0-255) of the visible content (alpha-weighted) - None when fully opaque or unreadable."""
+    ff = ffmpeg()
+    tot = wsum = 0.0
+    opaque = True
+    for path in paths[:6]:
+        r = subprocess.run([ff, "-v", "error", "-i", path, "-vf", f"scale={width}:-2:flags=area,format=rgba",
+                            "-frames:v", "1", "-f", "rawvideo", "-"], capture_output=True) if ff else None
+        if not r or r.returncode or not r.stdout:
+            continue
+        b = r.stdout
+        for i in range(0, len(b) - 3, 4):
+            a = b[i + 3] / 255.0
+            if a < 0.99:
+                opaque = False
+            tot += a * (0.299 * b[i] + 0.587 * b[i + 1] + 0.114 * b[i + 2])
+            wsum += a
+    if opaque or wsum < 1:
+        return None
+    return tot / wsum
 
 
 def ffmpeg():
@@ -253,21 +298,24 @@ def cmd_pick(a):
 
 
 # ---------------------------------------------------------------- sheet
-def cmd_sheet(a):
+def build_sheet(frames, out, thumb=None):
+    """Tile frames into one image over a backdrop that suits the content. -> (W, H, blank)."""
     ff = ffmpeg()
     if not ff:
         sys.exit("ERROR: ffmpeg not found")
-    for p in a.frames:
+    for p in frames:
         if not os.path.isfile(p):
             sys.exit(f"ERROR: frame not found: {p}")
-    w, h = png_size(a.frames[0])
-    n = len(a.frames)
+    w, h = image_size(frames[0])
+    level = content_level(frames)
+    backdrop = LIGHT_BACKDROP if level is not None and level < 90 else BACKDROP   # dark content -> light grey
+    n = len(frames)
     portrait = h > w
     if n == 1:
-        cols, tw = 1, a.thumb or min(w, 1280)
+        cols, tw = 1, thumb or min(w, 1280)
     else:
         cols = n if (portrait and n <= 6) else math.ceil(math.sqrt(n))
-        tw = a.thumb or (360 if portrait else 640)
+        tw = thumb or (360 if portrait else 640)
     tw -= tw % 2
     th = max(2, round(h * tw / w / 2) * 2)
     gap = 0 if n == 1 else 4
@@ -275,7 +323,7 @@ def cmd_sheet(a):
     parts, tiles = [], []
     for i in range(rows * cols):
         if i < n:
-            parts.append(f"color=c={BACKDROP}:s={tw}x{th}:d=1[b{i}];"
+            parts.append(f"color=c={backdrop}:s={tw}x{th}:d=1[b{i}];"
                          f"[{i}:v]scale={tw}:{th}:flags=lanczos,format=rgba[s{i}];"
                          f"[b{i}][s{i}]overlay=shortest=1:format=auto,format=rgb24,"
                          f"pad={tw + 2 * gap}:{th + 2 * gap}:{gap}:{gap}:color=0x111111[t{i}]")
@@ -283,45 +331,206 @@ def cmd_sheet(a):
             parts.append(f"color=c=0x111111:s={tw + 2 * gap}x{th + 2 * gap}:d=1,format=rgb24[t{i}]")
         tiles.append(f"[t{i}]")
     row_labels = []
-    for r in range(rows):
-        row = tiles[r * cols:(r + 1) * cols]
+    for r_ in range(rows):
+        row = tiles[r_ * cols:(r_ + 1) * cols]
         if cols == 1:
             row_labels.append(row[0])
         else:
-            parts.append("".join(row) + f"hstack=inputs={cols}[r{r}]")
-            row_labels.append(f"[r{r}]")
+            parts.append("".join(row) + f"hstack=inputs={cols}[r{r_}]")
+            row_labels.append(f"[r{r_}]")
     if rows == 1:
-        out = row_labels[0]
+        label = row_labels[0]
     else:
         parts.append("".join(row_labels) + f"vstack=inputs={rows}[out]")
-        out = "[out]"
+        label = "[out]"
     cmd = [ff, "-y", "-v", "error"]
-    for p in a.frames:
+    for p in frames:
         cmd += ["-i", p]
-    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
-    cmd += ["-filter_complex", ";".join(parts), "-map", out, "-frames:v", "1", a.out]
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    cmd += ["-filter_complex", ";".join(parts), "-map", label, "-frames:v", "1", out]
     r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode or not os.path.isfile(a.out):
+    if r.returncode or not os.path.isfile(out):
         sys.exit("ERROR: ffmpeg failed: " + (r.stderr.strip().splitlines() or ["?"])[-1])
-    blank = is_blank(a.out)
-    W, H = png_size(a.out)
+    W, H = png_size(out)
+    return W, H, bool(is_blank(out))
+
+
+def update_meta(path, preview, times=None, kind=None):
+    try:
+        with open(path, encoding="utf-8") as f:
+            meta = json.load(f)
+        meta["preview"] = preview
+        if times:
+            meta["preview_times"] = times
+        if kind:
+            meta["preview_kind"] = kind
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=1)
+    except (OSError, ValueError) as e:
+        print(f"WARN\tmeta.json not updated: {e}")
+
+
+def cmd_sheet(a):
+    W, H, blank = build_sheet(a.frames, a.out, a.thumb)
     if a.meta:
-        try:
-            with open(a.meta, encoding="utf-8") as f:
-                meta = json.load(f)
-            meta["preview"] = os.path.basename(a.out)
-            if a.times:
-                meta["preview_times"] = a.times
-            if a.kind:
-                meta["preview_kind"] = a.kind
-            with open(a.meta, "w", encoding="utf-8") as f:
-                json.dump(meta, f, ensure_ascii=False, indent=1)
-        except (OSError, ValueError) as e:
-            print(f"WARN\tmeta.json not updated: {e}")
-    state = "BLANK" if blank else "OK"
-    print(f"{state}\t{a.out}\t{W}x{H}\t{n} frame(s)\t{os.path.getsize(a.out)} B")
+        update_meta(a.meta, os.path.basename(a.out), a.times, a.kind)
+    print(f"{'BLANK' if blank else 'OK'}\t{a.out}\t{W}x{H}\t{len(a.frames)} frame(s)\t{os.path.getsize(a.out)} B")
     if blank:
         sys.exit(1)
+
+
+# ---------------------------------------------------------------- render-queue flow: any number of items, 2-4 AE calls
+PROBES = 12
+OM_TEMPLATE = "TIFF Sequence with Alpha"
+
+
+def motion(lumas, times):
+    """-> kind, reusable probe indices (static/continuous), window (start, end) for animated."""
+    blanks = [spread(v) < BLANK_STD for v in lumas]
+    if all(blanks):
+        return "blank", [], None
+    if len(lumas) == 1:
+        return "static", [0], None
+    d = [diff(lumas[i - 1], lumas[i]) for i in range(1, len(lumas))]
+    moving = [x > MOVE for x in d]
+    if not any(moving):
+        return "static", [max(range(len(lumas)), key=lambda i: spread(lumas[i]))], None
+    if sum(moving) / len(moving) >= CONTINUOUS:
+        pool = [i for i in range(len(lumas)) if not blanks[i]] or list(range(len(lumas)))
+        k = min(6, len(pool))
+        return "continuous", sorted({pool[round(j * (len(pool) - 1) / max(1, k - 1))] for j in range(k)}), None
+    segs, i = [], 0
+    while i < len(moving):
+        if moving[i]:
+            j = i
+            while j + 1 < len(moving) and moving[j + 1]:
+                j += 1
+            segs.append((i, j + 1, sum(d[i:j + 1])))
+            i = j + 1
+        else:
+            i += 1
+    a, b = segs[0][0], segs[-1][1]
+    active = sum(times[s_[1]] - times[s_[0]] for s_ in segs)
+    if len(segs) > 1 and active / max(1e-6, times[b] - times[a]) < 0.4:      # long hold between: keep the main move
+        a, b, _ = max(segs, key=lambda s_: s_[2])
+    end = times[b]
+    if blanks[b]:                                                            # moves out to nothing: stop before
+        end = (times[b] + times[b - 1]) / 2
+    return "animated", [], (times[a], end)
+
+
+def frames_in(folder):
+    if not os.path.isdir(folder):
+        return []
+    return sorted(os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith((".tif", ".tiff", ".png")))
+
+
+def queue_ops(state, which):
+    ops = [{"operation": "render.clear_queue", "args": {}}]
+    for iid, it in state["items"].items():
+        p = it.get(which)
+        if not p or it.get("done"):
+            continue
+        out = state["ae_root"].rstrip("/") + f"/{iid}/{which}/{which}_[#####].tif"
+        ops.append({"operation": "render.add_to_queue", "args": {"comp": it["comp"]}})
+        ops.append({"operation": "render.set_output", "args": {"outputTemplate": state["template"],
+                    "timeSpanStart": p["start"], "timeSpanDuration": p["dur"], "skipFrames": p["skip"]}})
+        ops.append({"operation": "render.set_output", "args": {"outputPath": out}})
+    ops.append({"operation": "render.start", "args": {}})
+    return ops
+
+
+def print_ops(ops, n):
+    print(f"OPS\t{n} item(s), {len(ops)} ops - send as ONE ae_do batch.run (timeoutMs ~ 15000 per item):")
+    print(json.dumps(ops, separators=(",", ":")))
+
+
+def cmd_queue(a):
+    import time
+    home = home_dir(a.home)
+    found = {m.get("id", "").upper(): (f, m) for f, m in items(home)}
+    comp_map = {}
+    if a.map:
+        with open(a.map, encoding="utf-8") as f:
+            comp_map = {k.upper(): v for k, v in json.load(f).items()}
+    run = time.strftime("%Y%m%d-%H%M%S")
+    root = os.path.abspath(os.path.join(home, "library", "_work", "previews", run))
+    ae_home = (a.ae_home or home).replace("\\", "/")
+    state = {"root": root, "ae_root": f"{ae_home.rstrip('/')}/library/_work/previews/{run}",
+             "template": a.template, "items": {}}
+    for iid in a.ids:
+        hit = found.get(iid.upper())
+        if not hit:
+            sys.exit(f"ERROR: item not found: {iid}")
+        folder, meta = hit
+        fps, dur = meta.get("fps"), meta.get("duration")
+        if not fps or not dur:
+            sys.exit(f"ERROR: {iid}: meta.json needs fps and duration (read them with comp.info)")
+        total = max(1, round(dur * fps))
+        skip = max(0, math.ceil(total / a.probes) - 1)
+        state["items"][meta["id"]] = {"comp": comp_map.get(iid.upper()) or meta.get("comp"), "fps": fps, "duration": dur,
+                                      "folder": folder, "p": {"start": 0, "dur": dur, "skip": skip}}
+    os.makedirs(root, exist_ok=True)
+    with open(os.path.join(root, "state.json"), "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=1)
+    print(f"RUN\t{root}")
+    print_ops(queue_ops(state, "p"), len(state["items"]))
+    print(f"NEXT\tafter the render: previews.py auto \"{root}\"")
+
+
+def cmd_auto(a):
+    path = os.path.join(a.run, "state.json")
+    with open(path, encoding="utf-8") as f:
+        state = json.load(f)
+    pending, report = 0, {"ok": 0, "blank": 0, "missing": 0}
+    for iid, it in state["items"].items():
+        if it.get("done"):
+            continue
+        which = "a" if it.get("a") else "p"
+        files = frames_in(os.path.join(state["root"], iid, which))
+        if not files:
+            print(f"MISSING\t{iid}\tno frames in {which}/ - render failed or still running (render.status)")
+            report["missing"] += 1
+            continue
+        fps, p = it["fps"], it[which]
+        step = (p["skip"] + 1) / fps
+        times = [round(p["start"] + k * step, 4) for k in range(len(files))]
+        prev = os.path.join(it["folder"], "preview.png")
+        meta = os.path.join(it["folder"], "meta.json")
+        if which == "p":
+            lumas = []
+            for f_ in files:
+                v = luma(f_)
+                if v is None:
+                    sys.exit(f"ERROR: cannot read {f_}")
+                lumas.append(v)
+            kind, idx, window = motion(lumas, times)
+            if kind == "blank":
+                print(f"BLANK\t{iid}\tevery frame empty - check the comp (glass/adjustment items need content under them)")
+                it.update(done=True, kind="blank")
+                report["blank"] += 1
+                continue
+            if kind == "animated":
+                ta, tb = window
+                stepf = max(1, round((tb - ta) * fps / 6))
+                start = max(0.0, round(tb - 5 * stepf / fps, 4))
+                it.update(kind="animated", a={"start": start, "dur": round(5 * stepf / fps + 1 / fps, 4), "skip": stepf - 1})
+                pending += 1
+                continue
+            use, use_times = [files[i] for i in idx], [times[i] for i in idx]
+        else:
+            kind, use, use_times = "animated", files[:6], times[:6]
+        W, H, blank = build_sheet(use, prev)
+        update_meta(meta, "preview.png", use_times, kind)
+        it.update(done=True, kind=kind)
+        report["blank" if blank else "ok"] += 1
+        print(f"{'BLANK' if blank else 'OK'}\t{iid}\t{kind}\t{len(use)} frame(s)\t{W}x{H}")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=1)
+    print("SUMMARY\tok=%d blank=%d missing=%d animated_pending=%d" % (report["ok"], report["blank"], report["missing"], pending))
+    if pending:
+        print_ops(queue_ops(state, "a"), pending)
+        print(f"NEXT\tafter the render: previews.py auto \"{a.run}\" again")
 
 
 # 5x7 bitmap font: labels without depending on system fonts
@@ -452,6 +661,15 @@ def main(argv=None):
     h.add_argument("--kind")
     h.add_argument("--meta")
     h.add_argument("--thumb", type=int)
+    q = sp.add_parser("queue")
+    q.add_argument("ids", nargs="+")
+    q.add_argument("--home")
+    q.add_argument("--ae-home", help="the KeremKit folder as After Effects sees it, when the tools run elsewhere (e.g. C:/Users/me/Documents/KeremKit)")
+    q.add_argument("--map", help='JSON {"ID": comp name or id} - e.g. a TMP_ comp with content under a glass item')
+    q.add_argument("--probes", type=int, default=PROBES)
+    q.add_argument("--template", default=OM_TEMPLATE, help="output module template (TIFF with alpha)")
+    au = sp.add_parser("auto")
+    au.add_argument("run", help="the RUN folder printed by queue")
     m = sp.add_parser("compare")
     m.add_argument("ids", nargs="+")
     m.add_argument("-o", "--out", required=True)
@@ -460,7 +678,7 @@ def main(argv=None):
     c = sp.add_parser("check")
     c.add_argument("image")
     a = ap.parse_args(argv)
-    {"scan": cmd_scan, "probe-times": cmd_probe_times, "pick": cmd_pick, "sheet": cmd_sheet, "check": cmd_check, "compare": cmd_compare}[a.cmd](a)
+    {"scan": cmd_scan, "probe-times": cmd_probe_times, "pick": cmd_pick, "sheet": cmd_sheet, "check": cmd_check, "compare": cmd_compare, "queue": cmd_queue, "auto": cmd_auto}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -26,6 +26,10 @@ bookkeeping on the user's computer and prints only short results.
   version                                 the kit version of this copy (compare with the skill's)
   stat     PATH [PATH ...]                size, modified time and short hash - proof a save really happened
   safe-copy SRC DST [--overwrite]         shell copy of a project before anything destructive (verified)
+  save-prep PROJECT WORK [--items DIR ...]  one step before a library save: note the project, copy it to WORK,
+                                          create the item folders
+  save-check WORK [--items ITEM.aep ...]  one step after: the project is unchanged, every item.aep was written
+  add-many ITEMS.tsv                      create item folders + meta.json + catalog rows from one table
 
 All commands except `where`/`init` use the home from the pointer file; pass --home to override.
 """
@@ -39,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.6.0"
+KIT_VERSION = "1.7.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -676,6 +680,103 @@ def cmd_safe_copy(a):
     print(f"OK\t{dst}\t{d1[0]} B\t{d1[1]}\tsource untouched: {src}")
 
 
+def cmd_save_prep(a):
+    import time
+    src, work = os.path.abspath(a.project), os.path.abspath(a.work)
+    if not os.path.isfile(src):
+        sys.exit(f"ERROR: project not found: {src} - save it first")
+    if os.path.normcase(src) == os.path.normcase(work):
+        sys.exit("ERROR: the work copy must be a different file")
+    os.makedirs(os.path.dirname(work), exist_ok=True)
+    shutil.copy2(src, work)
+    size, mtime, digest = file_stat(src)
+    if file_stat(work)[2] != digest:
+        sys.exit("ERROR: work copy does not match the project")
+    for d in a.items or []:
+        os.makedirs(d, exist_ok=True)
+    wjson(work + ".state.json", {"project": src, "size": size, "mtime": mtime, "digest": digest,
+                                 "prepared": time.time() - 2})
+    print(f"OK\tproject {os.path.basename(src)} {size} B noted\twork copy {work}\t{len(a.items or [])} item folder(s) ready")
+
+
+def cmd_save_check(a):
+    work = os.path.abspath(a.work)
+    st = rjson(work + ".state.json")
+    if not st:
+        sys.exit(f"ERROR: no save-prep state next to {work}")
+    problems = []
+    if not os.path.isfile(st["project"]):
+        problems.append(f"PROJECT MISSING\t{st['project']}")
+    else:
+        size, _, digest = file_stat(st["project"])
+        if digest != st["digest"]:
+            problems.append(f"PROJECT CHANGED\t{st['project']}\t{st['size']} -> {size} B")
+    for p in a.items or []:
+        if not os.path.isfile(p) or os.path.getsize(p) == 0:
+            problems.append(f"NOT WRITTEN\t{p}")
+        elif os.path.getmtime(p) < st["prepared"]:
+            problems.append(f"OLD FILE\t{p}\t(not saved in this run)")
+    for line in problems:
+        print(line)
+    if problems:
+        sys.exit(1)
+    print(f"OK\tproject unchanged\t{len(a.items or [])} item file(s) written")
+
+
+def cmd_add_many(a):
+    """Rows: id category name local tags summary comp size fps duration [pack original_comp fonts footage usage_note]."""
+    h = need_home(home_dir(a.home))
+    lang = (deep_fill(rjson(prefs_path(h), {}), DEFAULT_PREFS)["language"].get("library") or "tr")
+    with open(a.file, encoding="utf-8") as f:
+        lines = [ln.rstrip("\n\r") for ln in f if ln.strip() and not ln.startswith("#")]
+    head = lines[0].split("\t")
+    need = ["id", "category", "name", "tags", "summary", "comp", "size", "fps", "duration"]
+    miss = [k for k in need if k not in head]
+    if miss:
+        sys.exit(f"ERROR: header misses: {', '.join(miss)}")
+    done = 0
+    for n, ln in enumerate(lines[1:], 2):
+        row = dict(zip(head, ln.split("\t")))
+        bad = [k for k in need if not row.get(k, "").strip()]
+        if bad:
+            print(f"SKIP\tline {n}\tmissing {', '.join(bad)}")
+            continue
+        cat = row["category"].strip()
+        folder = os.path.join(h, "library", "items", cat, f"{row['id'].strip()}_{slug(row['name'])}")
+        os.makedirs(folder, exist_ok=True)
+        mp = os.path.join(folder, "meta.json")
+        meta = rjson(mp, {}) or {}
+        w, _, hgt = row["size"].lower().partition("x")
+        meta.update({
+            "id": row["id"].strip(), "name": row["name"].strip(), "category": cat,
+            "tags": [t.strip() for t in row["tags"].split(",") if t.strip()],
+            "summary": row["summary"].strip(), "comp": row["comp"].strip(), "file": "item.aep",
+            "preview": meta.get("preview", "preview.png"), "size": [int(w), int(hgt)],
+            "fps": float(row["fps"]), "duration": float(row["duration"]),
+        })
+        if row.get("local", "").strip():
+            meta["names"] = {lang: row["local"].strip()}
+        meta.setdefault("params", [])
+        deps = meta.setdefault("deps", {"fonts": [], "plugins": [], "footage": []})
+        for k in ("fonts", "footage"):
+            if row.get(k, "").strip():
+                deps[k] = [x.strip() for x in row[k].split(",") if x.strip()]
+        if row.get("pack", "").strip():
+            meta["source"] = {"pack": row["pack"].strip(), "original_comp": row.get("original_comp", "").strip()}
+        if row.get("usage_note", "").strip():
+            meta["usage_note"] = row["usage_note"].strip()
+        meta.setdefault("created", date.today().isoformat())
+        meta.setdefault("version", 1)
+        meta.setdefault("changes", [])
+        wjson(mp, meta)
+        r_ = subprocess.run([sys.executable, os.path.abspath(__file__), "--home", h, "add", mp], capture_output=True, text=True)
+        if r_.returncode:
+            print(f"ERROR\t{row['id']}\t{(r_.stderr or r_.stdout).strip()}")
+            continue
+        done += 1
+    print(f"OK\t{done} item(s) written\t(folders, meta.json, catalog)")
+
+
 def inside(home, rel):
     """True when rel (a catalog/manifest folder) stays inside home."""
     if not rel or os.path.isabs(rel) or re.match(r"^[A-Za-z]:", rel) or ".." in rel.replace("\\", "/").split("/"):
@@ -843,6 +944,15 @@ def main():
     sp.add_parser("version")
     st = sp.add_parser("stat")
     st.add_argument("paths", nargs="+")
+    spp = sp.add_parser("save-prep")
+    spp.add_argument("project")
+    spp.add_argument("work")
+    spp.add_argument("--items", nargs="*")
+    scc = sp.add_parser("save-check")
+    scc.add_argument("work")
+    scc.add_argument("--items", nargs="*")
+    am = sp.add_parser("add-many")
+    am.add_argument("file")
     sc = sp.add_parser("safe-copy")
     sc.add_argument("src")
     sc.add_argument("dst")
@@ -853,7 +963,8 @@ def main():
     {"where": cmd_where, "init": cmd_init, "pref": cmd_pref, "cat": cmd_cat, "search": cmd_search,
      "new-id": cmd_new_id, "plan": cmd_plan, "add": cmd_add, "style-archive": cmd_style_archive,
      "validate": cmd_validate, "reindex": cmd_reindex, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
-     "unpack": cmd_unpack, "version": cmd_version, "stat": cmd_stat, "safe-copy": cmd_safe_copy}[a.cmd](a)
+     "unpack": cmd_unpack, "version": cmd_version, "stat": cmd_stat, "safe-copy": cmd_safe_copy, "save-prep": cmd_save_prep,
+     "save-check": cmd_save_check, "add-many": cmd_add_many}[a.cmd](a)
 
 
 if __name__ == "__main__":
