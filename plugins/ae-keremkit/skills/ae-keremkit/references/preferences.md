@@ -23,6 +23,7 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `paths.materials.*` | setup / first time a material is needed | "Which folder holds your <kind> files?" |
 | `paths.presets` | first time presets are learned | "Which folder holds your After Effects presets?" |
 | `paths.footage_folders` | first edit that needs footage | "Which folder holds the material for this edit? (Tell me once - I'll remember it.)" |
+| `paths.projects` | the first time an unsaved project must be saved (library save, checkpoint, save-prep) | "Where do you keep your main projects? I'll suggest saving new ones there." |
 | `subtitles.enabled`, `engine`, `tools.whisper.model` | setup | see `setup.md` |
 | `subtitles.rules.*` | first subtitle build | see `subtitles.md` |
 | `subtitles.font`, `subtitles.look` | first subtitle build without a style | "Do you have a font and look in mind for subtitles, or shall I suggest one?" |
@@ -37,6 +38,9 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `library.preview_repair` | broken previews found by `previews.py scan` | see `previews.md` -> Repairing old previews (`never` = don't ask again) |
 | `design.plan` | default `big` - never asked; changed when the user says so ("don't ask, just build" -> `off`; "always show me the plan" -> `always`) | `design-plan.md` |
 | `logos.confirm` | default `ask`; `off` when the user says logos may be added without asking | `assets.md` -> Logos |
+| `library.ask_parts` | default `ask`; `always` / `never` when the user says so | `library-save.md` -> 1b |
+| `presets.root` | default `<User Presets>/KeremKit`; changed only when the user names another folder | `presets.md` |
+| `presets.save_method` | the first time a preset is saved | "Presets can't be written by scripts. Shall I (1) tell you the exact folder and name so you save it in AE - cheapest - or (2) do it myself by screen control - works, but costs ~10-25k tokens per preset and can break?" -> `user` / `screen` (`ask` if they want to choose each time) |
 | `assets.allow_attribution` | default false; true when the user accepts items that need a credit | `assets.md` |
 | `audio.target_lufs` | first audio processing without a known destination | "Where will this be published? (YouTube -14 LUFS, podcast -16, broadcast -23)" |
 | `formats.targets` | first multi-format request | "Which formats do you publish to? (16:9, 9:16, 1:1, 4:5)" |

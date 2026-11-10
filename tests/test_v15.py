@@ -175,29 +175,30 @@ def test_queue_and_auto_two_passes(tmp_path):
         (d / "meta.json").write_text(json.dumps({"id": iid, "comp": f"LIB_{iid}", "fps": 10, "duration": 12}), encoding="utf-8")
     out = run("previews.py", "queue", "UI-001", "UI-002", "--home", kk, "--ae-home", "C:/Users/me/Documents/KeremKit").stdout
     root = re.search(r"RUN\t(.*)", out).group(1)
-    ops = json.loads(out.split("\n")[2])
-    assert ops[0]["operation"] == "render.clear_queue" and ops[-1]["operation"] == "render.start" and len(ops) == 8
-    assert ops[3]["args"]["outputPath"].startswith("C:/Users/me/Documents/KeremKit/library/_work/previews/")
-    assert ops[2]["args"]["skipFrames"] == 9
+    calls = [json.loads(ln) for ln in out.splitlines() if ln.startswith("{")]
+    assert len(calls) == 2 and calls[0]["compNameOrId"] == "LIB_UI-001"
+    assert calls[0]["outPath"].startswith("C:/Users/me/Documents/KeremKit/library/_work/previews/")
+    assert calls[0]["times"][0] == 0.5 and len(calls[0]["times"]) == 12
     for k in range(12):                                   # UI-001 black icon (static), UI-002 moves at probes 4-6
         p1 = os.path.join(root, "UI-001", "p")
         p2 = os.path.join(root, "UI-002", "p")
         os.makedirs(p1, exist_ok=True)
         os.makedirs(p2, exist_ok=True)
         ff("-f", "lavfi", "-i", "color=c=black@0.0:s=320x180,format=rgba", "-f", "lavfi", "-i", "color=c=black:s=60x60",
-           "-filter_complex", "[0][1]overlay=x=100:y=50,format=rgba", "-frames:v", 1, os.path.join(p1, f"p_{k * 10:05d}.tif"))
+           "-filter_complex", "[0][1]overlay=x=100:y=50,format=rgba", "-frames:v", 1, os.path.join(p1, f"p_{k}.png"))
         x = -200 if k < 4 else (180 if k > 6 else k * 30)
         ff("-f", "lavfi", "-i", "color=c=black@0.0:s=320x180,format=rgba", "-f", "lavfi", "-i", "color=c=white:s=80x80",
-           "-filter_complex", f"[0][1]overlay=x={x}:y=40,format=rgba", "-frames:v", 1, os.path.join(p2, f"p_{k * 10:05d}.tif"))
+           "-filter_complex", f"[0][1]overlay=x={x}:y=40,format=rgba", "-frames:v", 1, os.path.join(p2, f"p_{k}.png"))
     out = run("previews.py", "auto", root).stdout
     assert "OK\tUI-001\tstatic" in out and "animated_pending=1" in out
-    ops2 = json.loads(out.strip().split("\n")[-2])
-    span = ops2[2]["args"]
-    assert 3.0 <= span["timeSpanStart"] and span["timeSpanStart"] + span["timeSpanDuration"] <= 6.2
+    call2 = [json.loads(ln) for ln in out.splitlines() if ln.startswith("{")]
+    assert len(call2) == 1 and call2[0]["outPath"].endswith("/UI-002/a/a.png")
+    t2 = call2[0]["times"]
+    assert len(t2) == 6 and 3.5 < t2[0] and t2[-1] == 6.5
     a = os.path.join(root, "UI-002", "a")
     os.makedirs(a)
     for k in range(6):
-        box(os.path.join(a, f"a_{k:05d}.png"), 100 + 16 * k)
+        box(os.path.join(a, f"a_{k}.png"), 100 + 16 * k)
     out = run("previews.py", "auto", root).stdout
     assert "OK\tUI-002\tanimated\t6 frame(s)" in out
     m = json.loads((kk / "library" / "items" / "ui" / "UI-002_x" / "meta.json").read_text(encoding="utf-8"))
@@ -251,3 +252,11 @@ def test_skill_forbids_self_update_and_doctor_flags_user_tools(tmp_path):
     (kk / "extensions" / "texture-lock").mkdir()
     out = run("keremkit.py", "--home", kk, "doctor", env=env).stdout
     assert "not kit files: texturelock.py" in out and "texture-lock" in out
+
+
+def test_new_190_prefs(tmp_path):
+    env = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path))
+    run("keremkit.py", "init", tmp_path / "KK", env=env)
+    get = lambda k: run("keremkit.py", "--home", tmp_path / "KK", "pref", "get", k).stdout.strip().strip('"')
+    assert get("library.ask_parts") == "ask" and get("presets.save_method") == "null" and get("paths.projects") == "null"
+    assert get("presets.root") == "<User Presets>/KeremKit"

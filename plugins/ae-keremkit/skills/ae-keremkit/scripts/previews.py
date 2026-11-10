@@ -10,9 +10,9 @@
                                              tile the frames over a dark backdrop into one preview, then check it
   check  IMAGE.png                           ok / blank for one image
   queue  ID [ID ...] [--home H] [--ae-home PATH] [--map m.json]
-                                             render-queue ops for one batch: ~12 probe frames per item (TIFF, alpha)
+                                             one ae_render_frame call per item: ~12 probe times (alpha kept)
   auto   RUN                                 read the rendered frames: static / continuous -> preview done;
-                                             animated -> ops for a 2nd batch with 6 frames in the motion; run again
+                                             animated -> a 2nd call per item with 6 times in the motion; run again
   compare ID [ID ...] -o OUT.png [--home H] [--width W]
                                              several items' previews in one sharp image, numbered 1, 2, 3...
                                              with their ids - to show the user options in the chat
@@ -25,6 +25,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -381,7 +382,6 @@ def cmd_sheet(a):
 
 # ---------------------------------------------------------------- render-queue flow: any number of items, 2-4 AE calls
 PROBES = 12
-OM_TEMPLATE = "TIFF Sequence with Alpha"
 
 
 def motion(lumas, times):
@@ -420,29 +420,30 @@ def motion(lumas, times):
 
 
 def frames_in(folder):
+    """Rendered frames in order: <stem>_<index>.png from ae_render_frame (index unpadded) or any numbered files."""
     if not os.path.isdir(folder):
         return []
-    return sorted(os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith((".tif", ".tiff", ".png")))
+    files = [f for f in os.listdir(folder) if f.lower().endswith((".tif", ".tiff", ".png"))]
+    num = lambda f: int((re.findall(r"(\d+)\.[A-Za-z]+$", f) or ["0"])[0])
+    return [os.path.join(folder, f) for f in sorted(files, key=lambda f: (num(f), f))]
 
 
-def queue_ops(state, which):
-    ops = [{"operation": "render.clear_queue", "args": {}}]
+def render_calls(state, which):
+    """One ae_render_frame call per item - exact times, alpha kept, colour managed."""
+    out = []
     for iid, it in state["items"].items():
         p = it.get(which)
         if not p or it.get("done"):
             continue
-        out = state["ae_root"].rstrip("/") + f"/{iid}/{which}/{which}_[#####].tif"
-        ops.append({"operation": "render.add_to_queue", "args": {"comp": it["comp"]}})
-        ops.append({"operation": "render.set_output", "args": {"outputTemplate": state["template"],
-                    "timeSpanStart": p["start"], "timeSpanDuration": p["dur"], "skipFrames": p["skip"]}})
-        ops.append({"operation": "render.set_output", "args": {"outputPath": out}})
-    ops.append({"operation": "render.start", "args": {}})
-    return ops
+        out.append({"compNameOrId": it["comp"], "outPath": state["ae_root"].rstrip("/") + f"/{iid}/{which}/{which}.png",
+                    "times": p["times"]})
+    return out
 
 
-def print_ops(ops, n):
-    print(f"OPS\t{n} item(s), {len(ops)} ops - send as ONE ae_do batch.run (timeoutMs ~ 15000 per item):")
-    print(json.dumps(ops, separators=(",", ":")))
+def print_calls(calls):
+    print(f"RENDER\t{len(calls)} ae_render_frame call(s), one at a time (no contactSheet, no analyze):")
+    for c in calls:
+        print(json.dumps(c, separators=(",", ":")))
 
 
 def cmd_queue(a):
@@ -456,8 +457,7 @@ def cmd_queue(a):
     run = time.strftime("%Y%m%d-%H%M%S")
     root = os.path.abspath(os.path.join(home, "library", "_work", "previews", run))
     ae_home = (a.ae_home or home).replace("\\", "/")
-    state = {"root": root, "ae_root": f"{ae_home.rstrip('/')}/library/_work/previews/{run}",
-             "template": a.template, "items": {}}
+    state = {"root": root, "ae_root": f"{ae_home.rstrip('/')}/library/_work/previews/{run}", "items": {}}
     for iid in a.ids:
         hit = found.get(iid.upper())
         if not hit:
@@ -466,15 +466,15 @@ def cmd_queue(a):
         fps, dur = meta.get("fps"), meta.get("duration")
         if not fps or not dur:
             sys.exit(f"ERROR: {iid}: meta.json needs fps and duration (read them with comp.info)")
-        total = max(1, round(dur * fps))
-        skip = max(0, math.ceil(total / a.probes) - 1)
+        n = max(2, min(a.probes, 32))
+        times = sorted({snap(min((k + 0.5) * dur / n, dur - 1.0 / fps), fps) for k in range(n)})
         state["items"][meta["id"]] = {"comp": comp_map.get(iid.upper()) or meta.get("comp"), "fps": fps, "duration": dur,
-                                      "folder": folder, "p": {"start": 0, "dur": dur, "skip": skip}}
+                                      "folder": folder, "p": {"times": times}}
     os.makedirs(root, exist_ok=True)
     with open(os.path.join(root, "state.json"), "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=1)
     print(f"RUN\t{root}")
-    print_ops(queue_ops(state, "p"), len(state["items"]))
+    print_calls(render_calls(state, "p"))
     print(f"NEXT\tafter the render: previews.py auto \"{root}\"")
 
 
@@ -492,9 +492,10 @@ def cmd_auto(a):
             print(f"MISSING\t{iid}\tno frames in {which}/ - render failed or still running (render.status)")
             report["missing"] += 1
             continue
-        fps, p = it["fps"], it[which]
-        step = (p["skip"] + 1) / fps
-        times = [round(p["start"] + k * step, 4) for k in range(len(files))]
+        fps = it["fps"]
+        times = it[which]["times"][:len(files)]
+        if len(files) < len(it[which]["times"]):
+            print(f"WARN\t{iid}\t{len(files)} of {len(it[which]['times'])} frames found")
         prev = os.path.join(it["folder"], "preview.png")
         meta = os.path.join(it["folder"], "meta.json")
         if which == "p":
@@ -512,9 +513,9 @@ def cmd_auto(a):
                 continue
             if kind == "animated":
                 ta, tb = window
-                stepf = max(1, round((tb - ta) * fps / 6))
-                start = max(0.0, round(tb - 5 * stepf / fps, 4))
-                it.update(kind="animated", a={"start": start, "dur": round(5 * stepf / fps + 1 / fps, 4), "skip": stepf - 1})
+                step = max(1.0 / fps, (tb - ta) / 6)
+                at = sorted({snap(max(0.0, tb - k * step), fps) for k in range(6)})
+                it.update(kind="animated", a={"times": at})
                 pending += 1
                 continue
             use, use_times = [files[i] for i in idx], [times[i] for i in idx]
@@ -529,7 +530,7 @@ def cmd_auto(a):
         json.dump(state, f, ensure_ascii=False, indent=1)
     print("SUMMARY\tok=%d blank=%d missing=%d animated_pending=%d" % (report["ok"], report["blank"], report["missing"], pending))
     if pending:
-        print_ops(queue_ops(state, "a"), pending)
+        print_calls(render_calls(state, "a"))
         print(f"NEXT\tafter the render: previews.py auto \"{a.run}\" again")
 
 
@@ -667,7 +668,6 @@ def main(argv=None):
     q.add_argument("--ae-home", help="the KeremKit folder as After Effects sees it, when the tools run elsewhere (e.g. C:/Users/me/Documents/KeremKit)")
     q.add_argument("--map", help='JSON {"ID": comp name or id} - e.g. a TMP_ comp with content under a glass item')
     q.add_argument("--probes", type=int, default=PROBES)
-    q.add_argument("--template", default=OM_TEMPLATE, help="output module template (TIFF with alpha)")
     au = sp.add_parser("auto")
     au.add_argument("run", help="the RUN folder printed by queue")
     m = sp.add_parser("compare")

@@ -9,6 +9,14 @@ Goal: store an element the user liked so it can later be placed **without redesi
 - **New category:** if the element fits no category well (and "other" would be a stretch), suggest one in a single line: "This doesn't fit any existing category. Shall I create a new one called '3D Objects' (3DO)?" On yes: `keremkit.py cat add --key 3d-objects --prefix 3DO --name "3D Objects" [--local tr="3D Objeler"] --desc "..."`. Do not create categories for one-off oddities; `summary` reporting `HINT` (5+ items in other) is a good moment to suggest one.
 - ID: `keremkit.py new-id <PREFIX>` -> e.g. `UI-008`.
 
+## 1b. Parts and presets
+
+Preference `library.ask_parts` (`ask` default | `always` | `never`). Before saving, look at the comp once (the `comp.info` you need anyway) for reusable parts: a texture or background, a text animation, a transition, an effect stack worth a preset. If there are any and the preference is `ask`, one question block:
+
+> Also save separately? (a) the metal texture as a background item, (b) the text animation as a motion item, (c) their effect stacks as presets (.ffx)?
+
+Each yes = its own library item (own ID and category, same work-copy flow - several items from one work copy follow `library-pack.md`) and/or its own preset (`presets.md` -> Saving an effect stack as a preset). `always` = save the parts without asking; `never` = skip the question. Nothing reusable -> no question.
+
 ## 2. Names (English + the user's language)
 
 Propose good names without asking; adopt the user's corrections.
@@ -28,7 +36,7 @@ Propose good names without asking; adopt the user's corrections.
 
 `project.reduce` deletes everything else from the open project, so it only ever runs on a **work copy**; the user's file is never reduced. (Once a library save destroyed a user's project: Save As reported `saved:true` without writing, undo did not bring the reduce back, and `project.open` wrote the reduced project over the original.) Few calls, in this order:
 
-1. **Shell, one call:** `ae_save_project()` first (path **P** - never saved -> ask for a path and stop), then `keremkit.py save-prep P <home>/library/_work/<Project>_work.aep --items <item folder>` - notes P, copies it, creates the item folder.
+1. **Shell, one call:** `ae_save_project()` first (path **P** - never saved: propose `<paths.projects>/<comp or topic name>.aep` and save there after an OK; `paths.projects` null -> ask once "Where do you keep your main projects?" and remember it), then `keremkit.py save-prep P <home>/library/_work/<Project>_work.aep --items <item folder>` - notes P, copies it, creates the item folder.
 2. **AE:** `project.open` the work copy - the returned context's `project.file` must be the copy (if it is P: stop).
 3. **AE:** `comp.info` of the `LIB_` comp (size, fps, duration for the meta).
 4. **Preview** from the work copy, before the reduce: `previews.md` (usually 2 AE calls).

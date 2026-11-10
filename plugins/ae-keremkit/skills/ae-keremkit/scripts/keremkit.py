@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.8.1"
+KIT_VERSION = "1.9.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -77,6 +77,7 @@ DEFAULT_PREFS = {
         "presets": [],
         "web_sources": [],
         "footage_folders": [],
+        "projects": None,      # where the user keeps main projects (asked once, when an unsaved project must be saved)
         "work_files": "next_to_project",
     },
     "tools": {
@@ -103,7 +104,8 @@ DEFAULT_PREFS = {
     "qc": {"mode": "ask"},
     "publish": {"chapters": None, "thumbnails": None},
     "design_import": {"preview": None},
-    "library": {"preview_repair": None},
+    "library": {"preview_repair": None, "ask_parts": "ask"},   # ask_parts: ask | always | never
+    "presets": {"root": "<User Presets>/KeremKit", "save_method": None},   # save_method: user | screen | ask
     "design": {"plan": "big"},
     "logos": {"confirm": "ask"},            # ask | off - add logos of named brands without asking
     "assets": {"allow_attribution": False},  # also list free items that need a credit (CC BY)              # always | big (several parts) | off - plan and ask before designing   # ask | never - offer to re-render broken previews

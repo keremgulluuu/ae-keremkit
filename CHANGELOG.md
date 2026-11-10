@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.9.0] - 2026-11-10
+
+### Added
+- Saving to the library asks once whether reusable parts (a texture, a text animation, an effect stack) should be saved as their own items or presets; preference `library.ask_parts` (ask / always / never).
+- Presets saved with KeremKit get one home and one naming scheme: `<User Presets>/KeremKit/<Category>/KK <Category> <Name> <Variant>.ffx` (`presets.root`), and a remembered way of saving them (`presets.save_method`: the user saves with exact instructions, or Claude by screen control with a cost warning).
+- `paths.projects`: the user's main project folder, asked once and offered whenever an unsaved project has to be saved.
+
+### Fixed
+- Previews: the render queue ignored `skipFrames` and rendered every frame (3,901 frames for a 65 s comp, MCP timeouts). `previews.py queue` now prints one `ae_render_frame` call per item at exact times (alpha kept, colour managed); animated items get one more call.
+
 ## [1.8.1] - 2026-11-10
 
 ### Changed

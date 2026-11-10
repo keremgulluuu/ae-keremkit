@@ -65,6 +65,21 @@ New comps: `standards.default_comp[<format>]` = [width, height, fps]. One frame 
 - Prefer one data-driven layer (subtitles, zoom) over hundreds of keyed layers.
 - Expressions that read JSON are evaluated per frame: keep data files compact (as the tools write them) and avoid nesting such layers in many precomps.
 
+## Preset folders
+
+Presets saved with KeremKit: `<presets.root>/<Folder>/KK <Category word> <Name> [<Variant>].ffx`.
+
+| Kind | Folder | Category word |
+|---|---|---|
+| text animations, titles | `TextAnimations` | Text |
+| textures | `Textures` | Texture |
+| backgrounds | `Backgrounds` | Background |
+| transitions | `Transitions` | Transition |
+| in/out moves, pops, bounces | `Motion` | Motion |
+| effect looks (glow, blur, grain) | `Effects` | Effect |
+| colour grades, palettes | `Color` | Color |
+| UI elements | `UI` | UI |
+
 ## Checkpoints
 
 `<Project>_v001.aep`, `_v002`... next to the project; if the name already ends in `_vNNN`, increment it. Claude never deletes checkpoints.

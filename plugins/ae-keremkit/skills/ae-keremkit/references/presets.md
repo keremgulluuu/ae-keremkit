@@ -19,11 +19,18 @@ KeremKit learns the user's After Effects presets so it can find, explain and app
 
 If the export schema yields empty cards for presets that clearly did something, read the lab layers instead with one `ae_layer_info(KK_PRESET_LAB, "all", detail: "summary")` call and write the cards from that.
 
-## Saving one effect stack as a preset
+## Saving an effect stack as a preset
 
-Scripts cannot create `.ffx` files. When the user says "save this effect as a preset":
-- Ask them to save it in AE (*Animation > Save Animation Preset*) into their presets folder, then learn just that file (scan + plan + learn on that folder, or that one file's folder).
-- Or, if they prefer, save it as a normal library item (`library-save.md`) - the effects and keyframes live in the item's `.aep`.
+Scripts cannot create `.ffx` files, so the file is saved by the user in AE or, if chosen, by screen control.
+
+**Where and how it is named** (always the same): root = preference `presets.root` (default `<User Presets>/KeremKit`, i.e. `Documents/Adobe/After Effects <version>/User Presets/KeremKit`), one sub-folder per category (`standards.md` -> Preset folders), file name `KK <Category word> <Descriptive name> [<Variant>].ffx` - e.g. `KeremKit/TextAnimations/KK Text Liquid Metal In - Out.ffx`, `KeremKit/Textures/KK Texture Liquid Metal.ffx`.
+
+**How it gets saved** - preference `presets.save_method` (null -> ask once, with the costs):
+- `user` (cheapest): one short instruction - "Select the effects on `<layer>` in `<comp>`, Animation > Save Animation Preset, save as `<full path>`" (create the folder first) - and wait for "done".
+- `screen`: Claude does it by screen control (select layer, effects, menu, file dialog). Costs ~1-2k tokens per step, usually 8-15 steps per preset, and breaks easily (panel layout, dialogs) - say so when offering it.
+- `ask`: ask each time which of the two.
+
+Then learn just that file (scan + plan + learn on its folder) into an FXP card with `source_item` = the library item it came from. If the user would rather not have a preset, the effects and keyframes still live in the library item's `.aep`.
 
 ## Answering questions about presets
 

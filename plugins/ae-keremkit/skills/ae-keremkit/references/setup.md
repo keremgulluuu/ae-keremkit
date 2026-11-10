@@ -31,7 +31,7 @@ Mention only problems, in one line (e.g. "ffmpeg was not found - it is needed fo
 
 > Where do you keep your edit materials? Give folder paths - or websites Claude can reach - for images, icons, sound effects, music and fonts. Leave out anything you don't have.
 
-Save to `paths.materials.*` and `paths.web_sources`. A project's **footage folders** (camera, voice, screen recordings) are asked the first time an edit needs them and appended to `paths.footage_folders`; once given, they are remembered.
+Save to `paths.materials.*` and `paths.web_sources`. The **projects folder** (`paths.projects`, where the user keeps main projects) is asked the first time an unsaved project has to be saved. A project's **footage folders** (camera, voice, screen recordings) are asked the first time an edit needs them and appended to `paths.footage_folders`; once given, they are remembered.
 
 ## 4. Subtitles
 

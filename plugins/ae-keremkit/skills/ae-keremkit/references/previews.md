@@ -2,22 +2,21 @@
 
 A preview shows what an item **does**. Claude never opens the frames: they are measured as numbers, and the user sees the finished image (`library-use.md` -> Showing options).
 
-## Making previews (one item or a hundred - same calls)
+## Making previews
 
-Render from the work copy **before** `project.reduce`. Frames go through the render queue as TIFF with alpha, so transparent items keep their transparency (`render.frame` writes no alpha - black items vanish on black).
+Render from the work copy **before** `project.reduce`. Frames come from the `ae_render_frame` tool at exact times - transparency kept, colour managed (`render.frame` in a batch writes no alpha: black items vanish on black; the render queue ignores `skipFrames` and renders every frame).
 
-1. **Shell:** `previews.py queue <ID> [<ID> ...] --ae-home <KeremKit folder as AE sees it>` -> prints a run folder and **one line of ops**. (`--ae-home` only when the tools run in a different view of the disk than AE, e.g. a Linux shell on a Windows machine.) The item's comp name comes from its `meta.json` (which needs `fps` and `duration`); `--map m.json` (`{"ID": comp}`) overrides it.
-2. **AE, one call:** send those ops as one `batch.run` (`timeoutMs` ~15 s per item; above ~25 items split into two batches). The project must be a copy - the ops clear its render queue.
-3. **Shell:** `previews.py auto <run>` - static and continuously moving items get their preview now (1 frame / 6 frames). Animated items print a second line of ops: 6 frames inside the motion, ending on the settled frame.
-4. **AE, one call** (only if step 3 printed ops) -> **Shell:** `previews.py auto <run>` again.
+1. **Shell:** `previews.py queue <ID> [<ID> ...] --ae-home <KeremKit folder as AE sees it>` -> a run folder and **one line per item**: the `ae_render_frame` arguments (comp, outPath, ~12 probe times). `--ae-home` only when the tools see the disk differently from AE (e.g. a Linux shell on a Windows machine). The comp comes from `meta.json` (which needs `fps` and `duration`); `--map m.json` (`{"ID": comp}`) overrides it.
+2. **AE:** one `ae_render_frame` call per line, exactly those arguments (no `contactSheet`, no `analyze` - keeps the response short), one at a time.
+3. **Shell:** `previews.py auto <run>` - static and continuously moving items get their preview now (1 / 6 frames). Animated items print a second line each: 6 times inside the motion, ending on the settled frame.
+4. **AE:** those calls (animated items only) -> **Shell:** `previews.py auto <run>` again.
 
-So: 2 AE calls when nothing is animated, 4 at most - for any number of items. Each preview is checked (`OK` / `BLANK`); dark content is shown on light grey, light content on dark grey.
+Per item: 1 AE call, 2 when animated. Each preview is checked (`OK` / `BLANK`); dark content is shown on light grey, light content on dark grey. Probe frames are full size: for long comps keep the default 12 (`--probes` max 32).
 
 - **Glass, blur, adjustment items** need something under them or they render empty: make `TMP_PREVIEW_<ID>` (the item over a gradient-ramp solid) and pass it with `--map`. `project.reduce` drops it later.
-- `MISSING` from `auto` = no frames yet (render still running or failed): `render.status`, then `auto` again.
+- `MISSING` / `WARN n of m frames` from `auto` = a render failed: run that item's call again, then `auto`.
 - `BLANK` = every frame empty: wrong comp, hidden layers, missing footage - tell the user rather than saving an empty preview.
-- If the output template isn't found (another AE language), `render.list_templates` and pass the TIFF-with-alpha one with `--template`.
-- One item at a time without the render queue: `ae_render_frame` with `times` (from `previews.py probe-times`), then `previews.py pick` + `previews.py sheet`.
+- One item by hand: `previews.py probe-times`, `ae_render_frame` with those `times`, `previews.py pick` + `previews.py sheet`.
 
 ## Repairing old previews
 
