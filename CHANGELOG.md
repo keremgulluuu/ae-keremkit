@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] - 2026-11-10
+
+### Added
+- Library options are shown in the chat: `previews.py compare` puts the previews of the offered items into one sharp image (full-width rows, numbered in the order of the reply, with id and name); Claude sends it without opening it.
+- Sharper previews: 360 px frames for vertical items, 640 px for horizontal ones.
+
 ## [1.5.0] - 2026-11-10
 
 ### Fixed

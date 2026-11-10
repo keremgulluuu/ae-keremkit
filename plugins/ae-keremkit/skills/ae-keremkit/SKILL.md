@@ -34,7 +34,7 @@ KeremKit/
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
 
-**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.5.0` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.5.0").
+**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.5.1` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.5.1").
 
 **Running the tools:** plain Python (standard library) plus ffmpeg/Whisper, run on the user's computer through whatever access the session has (a device shell, Claude Code's own shell). The same scripts ship in this skill's `scripts/` folder; `keremkit.py init` copies them into `KeremKit/tools/`. Without shell access, stage the needed file(s) into the workspace, run the bundled script there, and write the results back. On Windows the command may be `py` instead of `python`.
 
@@ -48,7 +48,7 @@ Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; defau
 
 ## Token rules (always on)
 
-1. **No screenshots by default.** Do not render-and-view frames unless the user asks. Verify with numbers (below). When asked to look, follow `references/verification.md`: economical first, full quality only on a second explicit request. The library preview PNG is written to disk and never opened.
+1. **No screenshots by default.** Do not render-and-view frames unless the user asks. Verify with numbers (below). When asked to look, follow `references/verification.md`: economical first, full quality only on a second explicit request. Library previews are never opened by Claude - but they are **shown to the user** whenever items are offered (`references/library-use.md` -> Showing options).
 2. Call `ae_context` once per session; then use the context each `ae_do` returns.
 3. Several operations = one `batch.run`, with verification reads (`comp.info`, `layer.bounds`, `comp.sample`) at the end of the same batch. An op cannot use an id returned earlier in the same batch - split into two batches when needed.
 4. Read little: `layer.info` with `detail: "summary"`; never return a whole project export inline (use `outPath` + `digest.py`); call `ae_catalog <category>` only for the category needed and remember it.

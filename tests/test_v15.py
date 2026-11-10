@@ -135,3 +135,18 @@ def test_new_prefs_and_known_issue(tmp_path):
     ki = (tmp_path / "KK" / "learning" / "known-issues.md").read_text(encoding="utf-8")
     assert "Never reduce the user's project" in ki
     assert (tmp_path / "KK" / "tools" / "previews.py").exists()
+
+
+def test_compare_builds_one_numbered_image(tmp_path):
+    lib = tmp_path / "KK" / "library" / "items" / "text"
+    for i, size in enumerate(["1920x1080", "1080x1920"]):
+        d = lib / f"TXT-00{i + 1}_x"
+        d.mkdir(parents=True)
+        (d / "meta.json").write_text(json.dumps({"id": f"TXT-00{i + 1}", "name": "Rise Blur – Reveal"}), encoding="utf-8")
+        ff("-f", "lavfi", "-i", f"testsrc=s={size}", "-frames:v", 1, d / "preview.png")
+    out = run("previews.py", "compare", "TXT-001", "txt-002", "-o", tmp_path / "c.png", "--home", tmp_path / "KK").stdout
+    assert out.startswith("OK") and "2 item(s)" in out
+    w, h = map(int, re.search(r"(\d+)x(\d+)", out).groups())
+    assert w == 1920 and h > 1080 + 3400
+    missing = run("previews.py", "compare", "NOPE-001", "-o", tmp_path / "d.png", "--home", tmp_path / "KK", check=False)
+    assert missing.returncode != 0 and "not found" in missing.stderr

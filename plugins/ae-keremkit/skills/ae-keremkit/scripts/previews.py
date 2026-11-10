@@ -9,6 +9,9 @@
   sheet  FRAME.png ... -o preview.png [--times T ...] [--kind K] [--meta meta.json] [--thumb W]
                                              tile the frames over a dark backdrop into one preview, then check it
   check  IMAGE.png                           ok / blank for one image
+  compare ID [ID ...] -o OUT.png [--home H] [--width W]
+                                             several items' previews in one sharp image, numbered 1, 2, 3...
+                                             with their ids - to show the user options in the chat
 
 Nothing here opens an image for Claude to look at: frames are measured as numbers.
 Pixel checks need ffmpeg; without it, scan falls back to file size only.
@@ -264,7 +267,7 @@ def cmd_sheet(a):
         cols, tw = 1, a.thumb or min(w, 1280)
     else:
         cols = n if (portrait and n <= 6) else math.ceil(math.sqrt(n))
-        tw = a.thumb or (240 if portrait else 480)
+        tw = a.thumb or (360 if portrait else 640)
     tw -= tw % 2
     th = max(2, round(h * tw / w / 2) * 2)
     gap = 0 if n == 1 else 4
@@ -321,6 +324,98 @@ def cmd_sheet(a):
         sys.exit(1)
 
 
+# 5x7 bitmap font: labels without depending on system fonts
+FONT = {
+    "0": "01110 10001 10011 10101 11001 10001 01110", "1": "00100 01100 00100 00100 00100 00100 01110",
+    "2": "01110 10001 00001 00010 00100 01000 11111", "3": "11110 00001 00001 01110 00001 00001 11110",
+    "4": "00010 00110 01010 10010 11111 00010 00010", "5": "11111 10000 11110 00001 00001 10001 01110",
+    "6": "00110 01000 10000 11110 10001 10001 01110", "7": "11111 00001 00010 00100 01000 01000 01000",
+    "8": "01110 10001 10001 01110 10001 10001 01110", "9": "01110 10001 10001 01111 00001 00010 01100",
+    "A": "01110 10001 10001 11111 10001 10001 10001", "B": "11110 10001 10001 11110 10001 10001 11110",
+    "C": "01110 10001 10000 10000 10000 10001 01110", "D": "11110 10001 10001 10001 10001 10001 11110",
+    "E": "11111 10000 10000 11110 10000 10000 11111", "F": "11111 10000 10000 11110 10000 10000 10000",
+    "G": "01110 10001 10000 10111 10001 10001 01111", "H": "10001 10001 10001 11111 10001 10001 10001",
+    "I": "01110 00100 00100 00100 00100 00100 01110", "J": "00111 00010 00010 00010 00010 10010 01100",
+    "K": "10001 10010 10100 11000 10100 10010 10001", "L": "10000 10000 10000 10000 10000 10000 11111",
+    "M": "10001 11011 10101 10101 10001 10001 10001", "N": "10001 11001 10101 10011 10001 10001 10001",
+    "O": "01110 10001 10001 10001 10001 10001 01110", "P": "11110 10001 10001 11110 10000 10000 10000",
+    "Q": "01110 10001 10001 10001 10101 10010 01101", "R": "11110 10001 10001 11110 10100 10010 10001",
+    "S": "01111 10000 10000 01110 00001 00001 11110", "T": "11111 00100 00100 00100 00100 00100 00100",
+    "U": "10001 10001 10001 10001 10001 10001 01110", "V": "10001 10001 10001 10001 10001 01010 00100",
+    "W": "10001 10001 10001 10101 10101 10101 01010", "X": "10001 10001 01010 00100 01010 10001 10001",
+    "Y": "10001 10001 01010 00100 00100 00100 00100", "Z": "11111 00001 00010 00100 01000 10000 11111",
+    "-": "00000 00000 00000 11111 00000 00000 00000", " ": "00000 00000 00000 00000 00000 00000 00000",
+}
+
+
+def text_boxes(text, x, y, px, color):
+    """drawbox filters that write text with the bitmap font (one box per horizontal run of pixels)."""
+    out = []
+    for ch in text.upper():
+        rows = FONT.get(ch, FONT[" "]).split()
+        for ry, row in enumerate(rows):
+            cx = 0
+            while cx < 5:
+                if row[cx] == "1":
+                    run = 1
+                    while cx + run < 5 and row[cx + run] == "1":
+                        run += 1
+                    out.append(f"drawbox=x={x + cx * px}:y={y + ry * px}:w={run * px}:h={px}:color={color}:t=fill")
+                    cx += run
+                else:
+                    cx += 1
+        x += 6 * px
+    return out
+
+
+def cmd_compare(a):
+    ff = ffmpeg()
+    if not ff:
+        sys.exit("ERROR: ffmpeg not found")
+    home = home_dir(a.home)
+    found = {}
+    for folder, meta in items(home):
+        if meta.get("id"):
+            found[meta["id"].upper()] = (folder, meta)
+    paths, labels = [], []
+    for n, item_id in enumerate(a.ids, 1):
+        hit = found.get(item_id.upper())
+        if not hit:
+            sys.exit(f"ERROR: item not found: {item_id}")
+        p = os.path.join(hit[0], hit[1].get("preview") or "preview.png")
+        if not os.path.isfile(p):
+            sys.exit(f"ERROR: {item_id} has no preview - make one first (library-save.md 4b)")
+        if is_blank(p):
+            print(f"WARN\t{item_id}\tpreview is empty - repair it before showing it")
+        paths.append(p)
+        name = "".join(c for c in str(hit[1].get("name") or "").upper() if c in FONT)[:36].strip()
+        labels.append(f"{n}  {hit[1]['id']}" + (f"  {name}" if name else ""))
+    W = a.width
+    strip, px = 64, 6
+    parts = []
+    for i, (p, label) in enumerate(zip(paths, labels)):
+        w, h = png_size(p)
+        th = max(2, round(h * W / w / 2) * 2)
+        draw = ",".join(text_boxes(label, 24, (strip - 7 * px) // 2, px, "white"))
+        parts.append(f"[{i}:v]scale={W}:{th}:flags=lanczos,format=rgba[s{i}];"
+                     f"color=c={BACKDROP}:s={W}x{th}:d=1[b{i}];[b{i}][s{i}]overlay=shortest=1:format=auto,format=rgb24[p{i}];"
+                     f"color=c=0x111111:s={W}x{strip}:d=1,format=rgb24,{draw}[l{i}];[l{i}][p{i}]vstack=inputs=2[r{i}]")
+    rows = "".join(f"[r{i}]" for i in range(len(paths)))
+    out = "[r0]" if len(paths) == 1 else "[out]"
+    if len(paths) > 1:
+        parts.append(f"{rows}vstack=inputs={len(paths)}[out]")
+    cmd = [ff, "-y", "-v", "error"]
+    for p in paths:
+        cmd += ["-i", p]
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    cmd += ["-filter_complex", ";".join(parts), "-map", out, "-frames:v", "1", a.out]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode or not os.path.isfile(a.out):
+        sys.exit("ERROR: ffmpeg failed: " + (r.stderr.strip().splitlines() or ["?"])[-1])
+    W2, H2 = png_size(a.out)
+    print(f"OK\t{a.out}\t{W2}x{H2}\t{len(paths)} item(s)\t{os.path.getsize(a.out)} B")
+
+
 def cmd_check(a):
     if not os.path.isfile(a.image):
         sys.exit(f"MISSING\t{a.image}")
@@ -357,10 +452,15 @@ def main(argv=None):
     h.add_argument("--kind")
     h.add_argument("--meta")
     h.add_argument("--thumb", type=int)
+    m = sp.add_parser("compare")
+    m.add_argument("ids", nargs="+")
+    m.add_argument("-o", "--out", required=True)
+    m.add_argument("--home")
+    m.add_argument("--width", type=int, default=1920, help="width of each item's row (default 1920)")
     c = sp.add_parser("check")
     c.add_argument("image")
     a = ap.parse_args(argv)
-    {"scan": cmd_scan, "probe-times": cmd_probe_times, "pick": cmd_pick, "sheet": cmd_sheet, "check": cmd_check}[a.cmd](a)
+    {"scan": cmd_scan, "probe-times": cmd_probe_times, "pick": cmd_pick, "sheet": cmd_sheet, "check": cmd_check, "compare": cmd_compare}[a.cmd](a)
 
 
 if __name__ == "__main__":
