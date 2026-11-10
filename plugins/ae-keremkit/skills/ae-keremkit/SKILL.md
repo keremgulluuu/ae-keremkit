@@ -1,6 +1,6 @@
 ---
 name: ae-keremkit
-description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, audio-based silence cutting with retake removal, transcript correction (asks when unsure), edit plans on word indices with rhythm checks, a technique catalogue (J/L cuts, jump-cut zoom, glass frames, flashes, audio clean-up, multi-format, QC), layer organisation, Whisper subtitles, synthesised SFX, a design library (items, projects, multi-frame previews), copying a look from images, web pages or reference videos, learning .ffx presets, publishing helpers and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles, styles, audio, techniques, designs, presets, reference videos, formats, QC, render - in any language, even when the kit is not named.
+description: After Effects editing kit for Claude - remembered preferences, whole edits from a named edit style, design plans that reuse library items before building new ones, audio-based silence cutting with retake removal, transcript correction (asks when unsure), edit plans on word indices with rhythm checks, a technique catalogue (J/L cuts, jump-cut zoom, glass frames, flashes, audio clean-up, multi-format, QC), layer organisation, Whisper subtitles, synthesised SFX, a design library (items, projects, multi-frame previews), copying a look from images, web pages or reference videos, learning .ffx presets, publishing helpers and checkpoints. Use it for ANY After Effects work through the aftereffects MCP tools - cutting, subtitles, styles, audio, techniques, designs, presets, reference videos, formats, QC, render - in any language, even when the kit is not named.
 license: MIT
 compatibility: Needs an After Effects MCP server exposing ae_do / ae_catalog / ae_context (tested with @kumoproductions/mcp-aftereffects), file or shell access to the user's computer, Python 3.9+, ffmpeg; Whisper for subtitles.
 ---
@@ -34,7 +34,7 @@ KeremKit/
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
 
-**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.5.1` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.5.1").
+**Tools up to date:** once per session, `python tools/keremkit.py version` must print `KeremKit 1.6.0` (this skill's version). If it prints another version or fails (versions before 1.5 have no `version` command), update the tools before using them: run this skill's `scripts/keremkit.py init` on the user's computer, or copy this skill's `scripts/` (and `assets/techniques.json`) into `KeremKit/tools/`. Say it in one line ("KeremKit tools updated to 1.6.0").
 
 **Running the tools:** plain Python (standard library) plus ffmpeg/Whisper, run on the user's computer through whatever access the session has (a device shell, Claude Code's own shell). The same scripts ship in this skill's `scripts/` folder; `keremkit.py init` copies them into `KeremKit/tools/`. Without shell access, stage the needed file(s) into the workspace, run the bundled script there, and write the results back. On Windows the command may be `py` instead of `python`.
 
@@ -91,6 +91,7 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 | The user gives a reference video to learn from or recreate | `references/video-reference.md` |
 | Subtitles (Whisper, line/word rules, highlights, placement) | `references/subtitles.md` |
 | Sound effects | `references/sound-effects.md` |
+| Designing something with several parts (intro, title card, a section's graphics) - plan with library items first, ask, then build | `references/design-plan.md` |
 | The user shares a reference (image, HTML, CSS, SVG, Lottie, project) to copy its look | `references/design-import.md` |
 | Effect presets: learn a folder, answer questions about them, apply one | `references/presets.md` |
 | "What can you do with the sound / cuts / ...?", techniques, adding a technique | `references/techniques.md` |
@@ -107,7 +108,7 @@ ASCII names inside AE (accents and special letters transliterated: ş→s, ü→
 
 ## Always-on habits
 
-- Before designing anything new, read `learning/house-style.md` and the active style.
+- Before designing anything new, read `learning/house-style.md` and the active style. A design with several parts starts with a numbered plan: what the library has, what to build new, the cost of each (`references/design-plan.md`, preference `design.plan`).
 - After designing a reusable element, offer once, in one line, to save it to the library.
 - After finishing an edit, ask once whether to save what was learned (`edit-styles.md` -> Learning). Do not ask again if declined.
 - New problem solved -> one entry in `learning/known-issues.md`.

@@ -102,6 +102,7 @@ Talk to Claude normally, in any language. Some things you can say:
 | *Bring back 1:20–1:25 from the original.* | That source range returns to the edit |
 | *Add subtitles, 3–4 words, two lines, highlight numbers.* | Rules saved, one data-driven subtitle layer added |
 | *Captions should sit higher during the voice-over.* | Zone-based position updated, nothing else touched |
+| *Make an intro with an animated title and a subscriber counter.* | A numbered plan first: which parts your library already covers, what could be built better from scratch, the cost of each, previews attached - then the build |
 | *Save this as "gold counter".* | Saved to the library with parameters and a preview, without touching your project file |
 | *Fix the empty previews in my library.* | Broken previews found and re-rendered (Claude also offers this when it finds them) |
 | *Gold counter, 0 to 25,000, starting at 2 seconds.* | Found, configured, placed — no redesign |

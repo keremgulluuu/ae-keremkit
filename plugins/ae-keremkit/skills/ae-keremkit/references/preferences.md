@@ -35,6 +35,7 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `style_versioning.mode` | first time a style changes | "When a style changes, should I keep the old version? Every change / Only big changes / Only certain kinds (e.g. colors) / Never" |
 | `design_import.preview` | first time a look is copied from an image | see `design-import.md` (HTML preview question) |
 | `library.preview_repair` | broken previews found by `previews.py scan` | see `library-save.md` -> Repairing previews (`never` = don't ask again) |
+| `design.plan` | default `big` - never asked; changed when the user says so ("don't ask, just build" -> `off`; "always show me the plan" -> `always`) | `design-plan.md` |
 | `audio.target_lufs` | first audio processing without a known destination | "Where will this be published? (YouTube -14 LUFS, podcast -16, broadcast -23)" |
 | `formats.targets` | first multi-format request | "Which formats do you publish to? (16:9, 9:16, 1:1, 4:5)" |
 | `qc.mode` | default `ask` | "Should I always run the quality check before the final render?" |

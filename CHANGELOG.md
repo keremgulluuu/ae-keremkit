@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-11-10
+
+### Added
+- Design plans: before a design with several parts, Claude splits it into parts, searches the library for all of them at once (`keremkit.py plan`), and asks one numbered question - use what's there, build better from scratch, or build what's missing - with a low / medium / high cost per part and the proposed items' previews in one image. Preference `design.plan` (`big` by default, `always`, `off`).
+
 ## [1.5.1] - 2026-11-10
 
 ### Added

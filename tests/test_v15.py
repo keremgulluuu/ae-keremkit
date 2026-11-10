@@ -150,3 +150,18 @@ def test_compare_builds_one_numbered_image(tmp_path):
     assert w == 1920 and h > 1080 + 3400
     missing = run("previews.py", "compare", "NOPE-001", "-o", tmp_path / "d.png", "--home", tmp_path / "KK", check=False)
     assert missing.returncode != 0 and "not found" in missing.stderr
+
+
+def test_plan_searches_every_part(tmp_path):
+    env = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path))
+    kk = tmp_path / "KK"
+    run("keremkit.py", "init", kk, env=env)
+    d = kk / "library" / "items" / "text" / "TXT-001_rise-reveal"
+    d.mkdir(parents=True)
+    (d / "meta.json").write_text(json.dumps({"id": "TXT-001", "name": "Rise Reveal", "category": "text",
+                                             "tags": ["animated", "title", "reveal"], "summary": "Animated title"}), encoding="utf-8")
+    run("keremkit.py", "--home", kk, "add", d / "meta.json")
+    out = run("keremkit.py", "--home", kk, "plan", "intro: animated title", "outro: confetti explosion").stdout
+    assert "PART 1\tintro\t1 hit(s)" in out and "good\t" in out and "TXT-001" in out and "preview: check" in out
+    assert "PART 2\toutro\t0 hit(s)" in out
+    assert run("keremkit.py", "--home", kk, "pref", "get", "design.plan").stdout.strip() in ('"big"', "big")

@@ -13,6 +13,7 @@ bookkeeping on the user's computer and prints only short results.
   cat      list                           list categories
   cat      add  --key K --prefix P --name "Name" [--local tr="Ad"] [--desc "..."]
   search   WORD [WORD ...] [--type item|style] [--n 5]
+  plan     "PART: words" ["PART: words" ...] [--n 2]   library hits for every part of a design at once
   new-id   PREFIX                         next free id, e.g. UI -> UI-008
   add      META_OR_STYLE.json             add/update a catalog row (library item or style)
   style-archive SLUG --reason "..."       snapshot styles/SLUG/style.json into the archive
@@ -38,7 +39,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.5.1"
+KIT_VERSION = "1.6.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -98,7 +99,8 @@ DEFAULT_PREFS = {
     "qc": {"mode": "ask"},
     "publish": {"chapters": None, "thumbnails": None},
     "design_import": {"preview": None},
-    "library": {"preview_repair": None},   # ask | never - offer to re-render broken previews
+    "library": {"preview_repair": None},
+    "design": {"plan": "big"},              # always | big (several parts) | off - plan and ask before designing   # ask | never - offer to re-render broken previews
     "standards": {
         "safe_area": {"action": 0.93, "title": 0.90},
         "vertical_ui_margin_px": {"top": 220, "bottom": 380, "right": 140, "left": 60},
@@ -385,12 +387,12 @@ def write_catalog(h, rows):
     os.replace(tmp, catalog_path(h))
 
 
-def cmd_search(a):
-    h = need_home(home_dir(a.home))
-    q = [w for w in norm(" ".join(a.words)).split() if w not in FILLER] or norm(" ".join(a.words)).split()
+def find(h, words, kind=None, rows=None):
+    """Score catalog rows against the words -> [(score, matched_all, row)], best first."""
+    q = [w for w in norm(" ".join(words)).split() if w not in FILLER] or norm(" ".join(words)).split()
     hits = []
-    for r in read_catalog(h):
-        if a.type and r.get("type") != a.type:
+    for r in rows if rows is not None else read_catalog(h):
+        if kind and r.get("type") != kind:
             continue
         toks = r["search"].split()
         blob = " ".join(toks)
@@ -409,14 +411,36 @@ def cmd_search(a):
                 score += 2 * matched
             if " ".join(q) in norm(r["name"] + " " + r["local_name"]):
                 score += 4
-            hits.append((score, r))
-    hits.sort(key=lambda x: (-x[0], x[1]["id"]))
+            hits.append((score, matched == len(q), r))
+    hits.sort(key=lambda x: (-x[0], x[2]["id"]))
+    return hits
+
+
+def cmd_search(a):
+    h = need_home(home_dir(a.home))
+    hits = [(s, r) for s, _, r in find(h, a.words, a.type)]
     if not hits:
         print("NO_MATCH")
         return
     for s, r in hits[:a.n]:
         label = r["name"] + (f" / {r['local_name']}" if r["local_name"] else "")
         print(f"{s}\t{r['id']}\t{r['type']}\t{label}\t{r['summary']}\t{os.path.join(h, r['folder'])}")
+
+
+def cmd_plan(a):
+    """One search per part of a design: what the library already has for each."""
+    h = need_home(home_dir(a.home))
+    rows = read_catalog(h)
+    for n, part in enumerate(a.parts, 1):
+        label, _, words = part.partition(":")
+        words = words.strip() or label
+        hits = find(h, words.split(), "item", rows)[:a.n]
+        print(f"PART {n}\t{label.strip()}\t{len(hits)} hit(s)")
+        for score, full, r in hits:
+            prev = os.path.join(h, r["folder"], "preview.png")
+            pv = "" if os.path.isfile(prev) and os.path.getsize(prev) >= 20000 else "\tpreview: check"
+            name = r["name"] + (f" / {r['local_name']}" if r["local_name"] else "")
+            print(f"  {'good' if full else 'partial'}\t{score}\t{r['id']}\t{name}\t{r['summary']}{pv}")
 
 
 def cmd_new_id(a):
@@ -794,6 +818,9 @@ def main():
     s.add_argument("words", nargs="+")
     s.add_argument("--type", choices=["item", "style"])
     s.add_argument("--n", type=int, default=5)
+    pl = sp.add_parser("plan")
+    pl.add_argument("parts", nargs="+", help='"intro: animated title" "counter: gold subscriber count"')
+    pl.add_argument("--n", type=int, default=2)
     n = sp.add_parser("new-id")
     n.add_argument("prefix")
     ad = sp.add_parser("add")
@@ -824,7 +851,7 @@ def main():
     if a.cmd == "cat" and a.action == "add" and not all([a.key, a.prefix, a.name]):
         ap.error("cat add needs --key --prefix --name")
     {"where": cmd_where, "init": cmd_init, "pref": cmd_pref, "cat": cmd_cat, "search": cmd_search,
-     "new-id": cmd_new_id, "add": cmd_add, "style-archive": cmd_style_archive,
+     "new-id": cmd_new_id, "plan": cmd_plan, "add": cmd_add, "style-archive": cmd_style_archive,
      "validate": cmd_validate, "reindex": cmd_reindex, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
      "unpack": cmd_unpack, "version": cmd_version, "stat": cmd_stat, "safe-copy": cmd_safe_copy}[a.cmd](a)
 
