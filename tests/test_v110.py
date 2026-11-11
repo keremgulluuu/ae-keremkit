@@ -206,3 +206,76 @@ def test_check_flags_vp9_and_repair_makes_it_premiere_safe(tmp_path, has_ffmpeg)
     assert "OK repaired strategy=standard encoder=libx264" in res
     assert "video=h264 640x360 30.0fps audio=aac" in res and "premiere=ok" in res
     assert (tmp_path / "clip_premiere.mp4").exists() and src.exists()   # the original is never touched
+
+
+# ---------------------------------------------------------------- 1.10.1: retakes and in-word gaps
+def words_json(tmp_path, items, name="v.json"):
+    p = tmp_path / name
+    p.write_text(json.dumps({"segments": [{"words": [{"word": " " + w, "start": s, "end": e} for w, s, e in items]}]}),
+                 encoding="utf-8")
+    return p
+
+
+def test_restart_at_cut_off_words_keeps_only_the_last_take(tmp_path):
+    seq = [("inanıyorum.", 28.2, 28.6), ("Ya", 29.2, 29.3), ("bunu", 29.3, 29.4), ("Türkiye'de", 29.4, 29.9),
+           ("or-", 29.9, 30.0), ("ya", 30.0, 30.2), ("bunu", 31.1, 31.3), ("Türkiye'de", 31.3, 31.8),
+           ("ürete-", 31.8, 32.0), ("bunu", 32.0, 32.2), ("Türkiye'de", 33.4, 34.0), ("üretebilecek", 34.1, 34.6),
+           ("anla-", 35.4, 35.7), ("[laughter]", 37.3, 37.5), ("bunu", 37.6, 37.8), ("Türkiye'de", 37.8, 38.3),
+           ("üretebilecek", 38.3, 38.9), ("anlaştığınız", 39.5, 40.1), ("zaman.", 40.1, 40.4)]
+    out = tmp_path / "rep.json"
+    run("transcript.py", "repeats", words_json(tmp_path, seq), "-o", out)
+    rem = [r for r in json.loads(out.read_text(encoding="utf-8"))["removals"] if r["kind"] == "restart"]
+    spans = sorted((r["src_in"], r["src_out"]) for r in rem)
+    assert spans[0][0] == 29.2                       # starts at "Ya", not at the previous sentence
+    assert max(e for _, e in spans) == 37.6          # everything up to the final take goes
+    covered = 29.2
+    for s, e in spans:                               # no stray word left between the removals
+        assert s <= covered + 1e-6
+        covered = max(covered, e)
+    assert all(r["apply"] for r in rem)
+
+
+def test_retakes_from_burst_texts(tmp_path):
+    def b(s, e, text, words=None):
+        return {"start": s, "end": e, "offset": s - 0.1, "wav": "x.wav", "text": text, "words": words}
+    masaj = [{"w": w, "s": s, "e": s + 0.3} for w, s in
+             (("Böyle", 49.95), ("bir", 50.2), ("masaj", 50.3), ("ürünüyle", 50.6), ("devam", 51.0),
+              ("ediyoruz.", 51.3), ("Arkadaşlar", 51.7), ("her...", 52.3))]
+    manifest = {"groups": [
+        {"id": 1, "bursts": [b(9.56, 11.26, "Ürün Yorumlama Part"), b(11.46, 11.97, "21"),
+                             b(13.14, 14.69, "Ürün yorumlama part..."), b(14.91, 15.36, "T21")]},
+        {"id": 2, "bursts": [b(28.6, 28.7, "Altyazı M.K."), b(29.18, 30.16, "Ya bunu Türkiye'de ora..."),
+                             b(31.1, 32.21, "Ya bunu Türkiye'de ürete..."),
+                             b(33.42, 35.71, "Bunu Türkiye'de üretebilecek bir üreticiyle anla..."),
+                             b(37.73, 42.43, "Bunu Türkiye'de üretebilecek bir üreticiyle anlaştığınız zaman.")]},
+        {"id": 3, "bursts": [b(49.95, 52.56, "Böyle bir masaj ürünüyle devam ediyoruz. Arkadaşlar her...", masaj),
+                             b(53.67, 56.96, "Arkadaşlar her sene bunlardan illa ki 5-10 tane çıkıyor.")]},
+        {"id": 4, "bursts": [b(103.25, 108.15, "Bu tarz dönümlere asla heves salmanızı..."),
+                             b(109.04, 109.8, "Tavsiye etmem.")]}]}
+    mp = tmp_path / "bursts.json"
+    mp.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    out = run("transcript.py", "retakes", mp, "-o", tmp_path / "r.json").stdout
+    rem = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))["removals"]
+    spans = [(r["src_in"], r["src_out"]) for r in rem]
+    assert (9.56, 13.14) in spans                                     # intro said twice, "21" in between
+    assert spans.count((29.18, 31.1)) == 1 and (31.1, 33.42) in spans and (33.42, 37.73) in spans
+    assert (51.7, 53.67) in spans                                     # only "Arkadaşlar her...", not the sentence before
+    assert not any(s >= 103 for s, _ in spans)                        # "Tavsiye etmem" is not a retake
+    assert "hidden_retakes=5" in out
+
+
+def test_short_silence_inside_a_word_is_not_cut(tmp_path, has_ffmpeg):
+    if not has_ffmpeg:
+        pytest.skip("ffmpeg not installed")
+    media = tmp_path / "w.wav"
+    # tone with a 0.12 s gap at 1.00-1.12 (a stop consonant inside the word 0.6-1.5) and a real pause 2.0-2.6
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "sine=f=220:d=3.4,volume='if(between(t,1.0,1.12)+between(t,2.0,2.6),0,1)':eval=frame",
+                    "-ar", "16000", str(media)], check=True)
+    wp = words_json(tmp_path, [("satti", 0.6, 1.5), ("bunun", 1.5, 2.0), ("metal", 2.6, 3.3)])
+    out = run("cutlist.py", "build", "--words", wp, "--media", media, "--pad-before", 0, "--pad-after", 0,
+              "--max-pause", 0.05, "-o", tmp_path / "c.json").stdout
+    segs = json.loads((tmp_path / "c.json").read_text(encoding="utf-8"))["segments"]
+    assert any(s["src_in"] <= 1.0 and s["src_out"] >= 1.12 for s in segs)     # the in-word gap stays
+    assert not any(s["src_in"] < 2.3 < s["src_out"] for s in segs)            # the real pause is cut
+    assert "in_word_gaps_kept=" in out

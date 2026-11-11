@@ -54,6 +54,7 @@ Show this summary with the question:
 | medium | medium | good | ~5 GB VRAM |
 | **turbo** (large-v3-turbo) | fast | close to large | ~6 GB VRAM - best balance |
 | large-v3 | slowest | best | ~10 GB VRAM |
+| CrisperWhisper 2.0 (verbatim) | medium | keeps retakes, false starts, fillers - best for cutting | ~6 GB VRAM, PyTorch; **non-commercial licence** |
 
 **Never pick the model yourself** - not even "turbo" as an obvious default. `tools.whisper.model` stays null until the user chooses; if it is still null at the first transcription, ask then (model, and the path if Whisper was not found).
 

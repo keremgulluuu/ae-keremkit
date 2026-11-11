@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.10.0"
+KIT_VERSION = "1.10.1"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]

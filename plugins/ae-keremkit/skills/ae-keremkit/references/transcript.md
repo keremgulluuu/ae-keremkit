@@ -6,7 +6,8 @@ Every spoken recording goes through the same pipeline before it is cut or subtit
 1 transcribe  (Whisper, word timestamps, initial prompt with topic + glossary)
 2 review      transcript.py review           -> Claude reads the compact transcript
 3 correct     transcript.py fix              -> sure fixes applied, unsure ones asked
-4 repeats     transcript.py repeats          -> retakes / repeats / fillers, sure ones applied
+4 repeats     transcript.py repeats          -> retakes / restarts / repeats / fillers, sure ones applied
+4b hidden     transcript.py bursts + retakes -> takes Whisper merged into one stretched word (always run)
 5 cut         cutlist.py build --remove      -> audio-based silence cut + repeats removed
 6 render      cutlist.py render --run
 7 subtitles   subtitles.py build (from the corrected words, mapped through the cut list)
@@ -21,6 +22,13 @@ Whisper mis-hears names, brands and jargon ("Claude" -> "Cloud", "Kılavd"). Giv
 - faster-whisper: `initial_prompt=...`
 - **Verbatim matters for repeats.** Whisper tends to "clean up" speech and silently drops false starts and repeated words - then they can't be found in the text. Make the prompt itself disfluent so Whisper keeps them, e.g. for Turkish: `"Ee, şey, bugün size, bugün size Claude'u anlatacağım. Iıı, yani..."` (adapt to the language), plus the topic and glossary. Audio that has no words at all is dropped by the cut anyway, which catches many of the retakes Whisper still skips.
 - The topic comes from the user's request, the file name, or the style; the glossary from `subtitles.glossary` (global) plus the style's `subtitles.glossary`. If neither exists and the video is clearly about specific names, ask once: "What is this video about, and are there names or terms I should spell exactly?" and save the terms to the glossary.
+
+**Verbatim model (CrisperWhisper 2.0).** When `tools.whisper.impl` is `crisperwhisper`, the transcript keeps every false start, repetition and cut-off word ("ürete-") and marks sounds as `[laughter]`, `[UH]`. Tested on a Turkish talking-head clip (IMG_3810): it showed all retakes in one pass, including ones large-v3 had merged or hidden, with no stretched words. Notes: numbers come out as words ("yirmi bir", "beş on") - write them as digits in the subtitle corrections; a few words are mis-heard like with any model (review as usual); the model licence is **non-commercial research** (Nyra Health) - the user decides whether their use fits. Runs with PyTorch (`crisperwhisper[transformers]`; the faster CT2 backend is Linux only); ~2 min load + ~1 min for a 2 min clip on an RTX 4060.
+```python
+from crisperwhisper import CrisperWhisperModel
+r = CrisperWhisperModel().transcribe("cam_16k.wav", language="tr", word_timestamps=True)
+words = [{"word": w.word, "start": w.start, "end": w.end} for w in r.words]   # -> {"segments": [{"words": words}]}
+```
 
 faster-whisper on Windows can crash on the audio decoder (PyAV) - see `troubleshooting.md`: decode with ffmpeg to a 16 kHz mono WAV first and pass the samples in.
 
@@ -66,7 +74,10 @@ Wait for the answer before building subtitles from the unsure ones. The user can
 | `retake` | "Bugün size... / Bugün size Claude'u anlatacağım." - an utterance that is the start of the next one | removed (asks if the match is weak) |
 | `repeat` | "bu araç bu araç çok güçlü" - a 2-6 word phrase said twice in a row | removed |
 | `stutter` | "ben ben" - one word twice | **asked**: many doubles are intentional ("yavaş yavaş", "çok çok") |
-| `filler` | "ııı", "eee", "um" when Whisper wrote them | removed |
+| `filler` | "ııı", "eee", "um", `[UH]` when Whisper wrote them | removed |
+| `restart` | "ya bunu Türkiye'de ürete- bunu Türkiye'de üretebilecek..." - a cut-off word (verbatim transcripts mark it with `-`) and the words before it said again | removed (never reaches back over a sentence end) |
+
+Sound tags (`[laughter]`, `[sniff]`) are ignored here; the silence cut treats them like any wordless sound.
 
 The **later** take is always kept - speakers repeat to correct themselves. The removed range runs from the first take's start to the kept take's start, so no gap is left.
 
@@ -82,6 +93,23 @@ Emin olmadıklarım:
 ```
 
 Apply the user's answers with `transcript.py accept repeats.json --ids 3 --reject 4`, then build the cut.
+
+## 4b. Hidden retakes (every edit, before cutting)
+
+A normal Whisper model can write several takes of a sentence **once** and stretch one word over the extra takes (IMG_3810: "üretebilecek" 4.76 s over 3 takes). Text comparison cannot see that. Check every edit:
+
+1. `transcript.py bursts cam.fixed.json --media cam_16k.wav --wav-dir _keremkit/bursts -o _keremkit/bursts.json` - lists `SUSPECT` spots (a word > 1.2 s, or an utterance slower than 0.6 s/word, over 2+ speech bursts) and cuts every burst of those spots into its own wav. No suspects -> done.
+2. Transcribe **each wav on its own** with the user's Whisper (`condition_on_previous_text=False`, word timestamps, same language) and fill `text` and `words` (`[{"w","s","e"}]` in source seconds = the burst's `offset` + word time) into bursts.json. faster-whisper:
+   ```python
+   for g in m["groups"]:
+       for b in g["bursts"]:
+           segs = list(model.transcribe(load_wav(b["wav"]), language=lang, condition_on_previous_text=False, word_timestamps=True)[0])
+           b["text"] = " ".join(s.text.strip() for s in segs)
+           b["words"] = [{"w": w.word.strip(), "s": b["offset"] + w.start, "e": b["offset"] + w.end} for s in segs for w in s.words]
+   ```
+3. `transcript.py retakes _keremkit/bursts.json --into repeats.json` - a burst whose end repeats the start of the next take (one burst may sit in between, e.g. a number) is removed up to the next take; tiny bursts and known Whisper hallucinations ("Altyazı M.K.") are ignored. List the found retakes to the user like the other repeats.
+
+On IMG_3810 this found exactly the known retakes (4 takes at 0:29, "Arkadaşlar her..." at 0:52) plus the intro said twice, and left "Tavsiye etmem" alone. With a verbatim model (above) the takes are usually already in the text and `repeats` finds them; run the check anyway - it is cheap when nothing is suspect.
 
 ## 5. Cut
 

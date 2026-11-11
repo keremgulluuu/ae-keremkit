@@ -40,6 +40,14 @@ The kit edits in After Effects first; Premiere is a second target for the same w
 2. **Captions:** `subtitles.py build` -> `subs.srt` -> `create_caption_track` (or the user imports the SRT) -> the user runs "Upgrade Caption to Graphic" once and saves a Track Style; tell them the exact steps.
 3. **Burned-in captions** instead: render them in AE over the cut and import the render.
 
+## Preset transitions (film burn, light leaks...) made in Premiere
+
+A preset sequence usually holds adjustment layers (Tint, blurs) **plus** overlay clips with blend modes. Rebuilding it from files in XML loses both. And a preset placed as a **nested clip does not work as a transition**: its adjustment layers only affect what is inside the nest, not the video under it. Use a nest only to carry the parts:
+1. `import_sequences` the preset sequences from a **copy** of the preset project into the work project.
+2. Place the preset as a nest on the cut point, then `unnest_sequence` it (or copy its track items) so every part sits on the main timeline above the video, at its own time and track, with its effects and blend modes intact.
+3. Size for another frame format on the overlay clips only (e.g. Scale 160 for a 1920x1080 preset on 1080x1920 - check the edges: 3072x1728 does not cover 1920 px height, it needs ~178); adjustment layers are not scaled.
+4. Read back: track items, effects and blend modes as in the preset (`get_effect_properties`). Not tested yet - report what happened.
+
 ## Cut in AE's way, finish in Premiere (files route)
 
 1. Transcript + cut list as usual (`transcript.md`, `cutting.md`).

@@ -15,6 +15,12 @@
            and filler sounds; high-confidence ones are marked apply=true, the rest are
            listed for the user. Feed the file to `cutlist.py build --remove`.
   accept   repeats.json --ids 3,5 [--reject 4]   change which removals apply
+  bursts   W.json --media FILE --wav-dir DIR -o bursts.json
+           hidden retakes: Whisper can write several takes ONCE and stretch a word over them. Finds words
+           longer than 1.2 s (or very slow utterances) that cover 2+ speech bursts, and cuts each burst of
+           those spots into its own wav. Transcribe every wav alone, fill "text"/"words", then:
+  retakes  bursts.json [--into repeats.json]
+           a burst whose end repeats the start of the next burst is a retake (the later take is kept)
 
 Times are source seconds of the recording the JSON belongs to.
 """
@@ -244,8 +250,19 @@ def replace_span(data, span, new_words):
 
 
 # ---------------------------------------------------------------- repeats
+TAG = re.compile(r"^\[[^\]]*\]$")          # verbatim models write sounds as [laughter], [UH], [sniff]
+TAG_FILLERS = {"[uh]", "[um]", "[uhm]", "[eh]", "[ah]", "[hmm]"}
+
+
 def cmd_repeats(a):
-    ws = [w for w in words_of(load(a.words)) if text_of(w)]
+    ws = []
+    for w in words_of(load(a.words)):
+        t = text_of(w)
+        if not t:
+            continue
+        if TAG.match(t) and t.lower() not in TAG_FILLERS:
+            continue                          # laughter, sniff, breath: not words, the silence cut handles them
+        ws.append(w)
     toks = [fold(text_of(w)) for w in ws]
     found = []
 
@@ -262,8 +279,39 @@ def cmd_repeats(a):
 
     # 1) filler sounds
     for i, t in enumerate(toks):
-        if t in {fold(f) for f in FILLERS}:
+        if t in {fold(f) for f in FILLERS} or text_of(ws[i]).lower() in TAG_FILLERS:
             add(i, i, "filler", "high", None, None)
+
+    # 1b) restarts at a cut-off word: verbatim transcripts mark a broken word with "-" ("ürete-"). The words
+    #     before it are said again right after -> everything from the first repeated word to the cut-off goes.
+    prev_cut = -1
+    for c, w in enumerate(ws):
+        if not text_of(w).rstrip().endswith("-") or c + 1 >= len(ws):
+            continue
+        after = toks[c + 1:c + 12]
+        best = None
+        lo = max(prev_cut + 1, c - 10)
+        for j in range(c - 1, lo - 1, -1):         # never reach back over a sentence end
+            if SENT_END.search(text_of(ws[j])):
+                lo = j + 1
+                break
+        for k in range(lo, c):
+            before = toks[k:c]
+            head = after[:len(before) + 1]
+            m = sum(b.size for b in difflib.SequenceMatcher(None, before, head).get_matching_blocks())
+            # the new take may drop a leading particle ("ya bunu..." -> "bunu...")
+            starts_alike = before and (before[0] in head[:2] or (len(before) > 1 and before[1] == head[0]))
+            if starts_alike and m >= max(0.6 * len(before), min(2, len(before))):
+                best = k
+                break                          # earliest start = the longest repeated stretch
+        if best is None:
+            nxt = toks[c + 1] if c + 1 < len(toks) else ""
+            stem = fold(text_of(w).rstrip("-"))
+            if stem and nxt.startswith(stem):    # "anla- anlaştığınız": only the broken word
+                best = c
+        if best is not None:
+            add(best, c, "restart", "high", c + 1, min(c + 6, len(ws) - 1))
+            prev_cut = c
 
     # 2) restarted sentences: an utterance that is (nearly) the beginning of a later one
     groups = utterances(ws, a.pause)
@@ -321,6 +369,146 @@ def cmd_repeats(a):
     print(f"OK found={len(found)} auto={auto} ask={len(found) - auto} -> {a.output}")
 
 
+# ---------------------------------------------------------------- hidden retakes
+HALLUCINATIONS = {"altyazi mk", "altyazi m k", "abone olmayi unutmayin", "izlediginiz icin tesekkurler",
+                  "thanks for watching", "subtitles by the amaraorg community", "thank you"}
+
+
+def speech_bursts(media, words, rel_db=-10.0, min_silence=0.15):
+    """Sounding stretches of the recording, split by silences >= min_silence (threshold relative to the speaker)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import cutlist  # noqa: E402  (sibling kit tool: audio envelope + silence detection)
+    sil, thr = cutlist.detect_silences(media, min_silence, None, [[s, e] for s, e in words], rel_db)
+    if sil is None:
+        sys.exit("ERROR: needs ffmpeg and an audio stream")
+    dur = len(cutlist.LAST["env"]) * cutlist.LAST["hop"]
+    out, t = [], 0.0
+    for x, y in sil:
+        if x - t > 0.08:
+            out.append([round(t, 3), round(x, 3)])
+        t = y
+    if dur - t > 0.08:
+        out.append([round(t, 3), round(dur, 3)])
+    return out, thr
+
+
+def cmd_bursts(a):
+    ws = [w for w in words_of(load(a.words)) if text_of(w) and w.get("start") is not None]
+    spans = [(w["start"], w.get("end", w["start"])) for w in ws]
+    bursts, thr = speech_bursts(a.media, spans, a.rel_db)
+
+    def idx(t):
+        return next((k for k, (x, y) in enumerate(bursts) if x - 0.02 <= t <= y + 0.02),
+                    next((k for k, (x, y) in enumerate(bursts) if x > t), len(bursts) - 1))
+    reasons, ranges = [], []
+    for w in ws:
+        s, e = w["start"], w.get("end", w["start"])
+        i0, i1 = idx(s), idx(e)
+        if e - s > a.max_word and i1 > i0:
+            reasons.append(f"{mmss(s)} \"{text_of(w)}\" {e - s:.2f}s over {i1 - i0 + 1} bursts")
+            ranges.append([i0, min(i1 + 1, len(bursts) - 1)])
+    for g in utterances(ws, 0.45):
+        s, e = ws[g[0]]["start"], ws[g[-1]].get("end", ws[g[-1]]["start"])
+        i0, i1 = idx(s), idx(e)
+        if len(g) >= 3 and (e - s) / len(g) > a.per_word and i1 > i0:
+            reasons.append(f"{mmss(s)} utterance {len(g)} words in {e - s:.1f}s over {i1 - i0 + 1} bursts")
+            ranges.append([i0, min(i1 + 1, len(bursts) - 1)])
+    ranges.sort()
+    groups = []
+    for r in ranges:
+        if groups and r[0] <= groups[-1][1]:
+            groups[-1][1] = max(groups[-1][1], r[1])
+        else:
+            groups.append(list(r))
+    os.makedirs(a.wav_dir, exist_ok=True)
+    manifest = {"media": os.path.abspath(a.media), "words_file": os.path.abspath(a.words), "threshold_db": round(thr, 1),
+                "groups": []}
+    import subprocess
+    for gi, (i0, i1) in enumerate(groups, 1):
+        items = []
+        for k in range(i0, i1 + 1):
+            x, y = bursts[k]
+            wav = os.path.join(os.path.abspath(a.wav_dir), f"g{gi:02d}_b{k:04d}.wav")
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0, x - 0.1):.3f}", "-to", f"{y + 0.1:.3f}",
+                            "-i", a.media, "-vn", "-ac", "1", "-ar", "16000", wav], check=True)
+            items.append({"start": x, "end": y, "offset": round(max(0, x - 0.1), 3), "wav": wav, "text": None, "words": None})
+        manifest["groups"].append({"id": gi, "bursts": items})
+    with open(a.output, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=1)
+    for r in reasons:
+        print("SUSPECT " + r)
+    print(f"OK groups={len(groups)} bursts={sum(len(g['bursts']) for g in manifest['groups'])} -> {a.output}"
+          + ("" if groups else " (no hidden retakes suspected)"))
+    if groups:
+        print("NEXT transcribe each burst wav ON ITS OWN (condition_on_previous_text=False, word timestamps), fill "
+              "'text' and 'words' [{w,s,e} in source seconds = offset + time], then: transcript.py retakes")
+
+
+def _toks(text):
+    return [t for t in (fold(x) for x in (text or "").split()) if t]
+
+
+def cmd_retakes(a):
+    m = load(a.manifest)
+    found = []
+    for g in m["groups"]:
+        bs = [b for b in g["bursts"] if b.get("text") is not None]
+        if len(bs) != len(g["bursts"]):
+            sys.exit(f"ERROR: group {g['id']} has bursts without text - transcribe them first")
+        live = [b for b in bs if b["end"] - b["start"] >= 0.25 and " ".join(_toks(b["text"])) not in HALLUCINATIONS
+                and _toks(b["text"])]
+        done_until = -1.0
+        for n, b in enumerate(live):
+            if b["start"] < done_until:
+                continue
+            ti = _toks(b["text"])
+            best, nxt = 0, None
+            # the next take may come one burst later (a number or a word said alone in between)
+            for cand in live[n + 1:n + 3]:
+                tj = _toks(cand["text"])
+                cut_off = b["text"].rstrip().endswith(("...", "…", "-")) or (
+                    tj and any(t.startswith(ti[-1]) and t != ti[-1] for t in tj[:len(ti) + 2]))
+                core = ti[:-1] if cut_off and len(ti) > 1 else ti
+                for L in range(1, len(core) + 1):
+                    suf = core[-L:]
+                    head = tj[:L + 1]
+                    matched = sum(blk.size for blk in difflib.SequenceMatcher(None, suf, head).get_matching_blocks())
+                    if matched >= max(0.6 * L, min(2, L)) and (L > 1 or len(suf[0]) >= 4) and L > best:
+                        best, nxt, best_core = L, cand, core
+                if nxt is not None:
+                    break
+            if not best:
+                continue
+            core = best_core
+            # remove from the first repeated word of this burst to the start of the next take
+            start = b["start"]
+            words = b.get("words") or []
+            if best < len(core) and len(words) >= len(ti):
+                start = words[len(core) - best]["s"]
+            done_until = nxt["start"]
+            found.append({"src_in": round(start, 3), "src_out": round(nxt["start"], 3), "kind": "hidden-retake",
+                          "confidence": "high", "apply": True, "removed": b["text"].strip(),
+                          "kept": nxt["text"].strip()})
+    if a.into:
+        data = load(a.into)
+        rem = [r for r in data["removals"] if r.get("kind") != "hidden-retake"] + found
+        rem.sort(key=lambda r: r["src_in"])
+        for k, r in enumerate(rem, 1):
+            r["id"] = k
+        data["removals"] = rem
+        out = a.into
+    else:
+        for k, r in enumerate(found, 1):
+            r["id"] = k
+        data = {"words_file": m.get("words_file"), "removals": found}
+        out = a.output or os.path.splitext(a.manifest)[0] + ".retakes.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    for r in found:
+        print(f"RETAKE\t{mmss(r['src_in'])}-{mmss(r['src_out'])}\t\"{r['removed']}\" -> keeps \"{r['kept'][:60]}\"")
+    print(f"OK hidden_retakes={len(found)} -> {out}")
+
+
 def cmd_accept(a):
     data = load(a.file)
     ids = {int(x) for x in (a.ids or "").split(",") if x.strip()}
@@ -369,8 +557,21 @@ def main():
     c.add_argument("file")
     c.add_argument("--ids")
     c.add_argument("--reject")
+    b = sp.add_parser("bursts")
+    b.add_argument("words")
+    b.add_argument("--media", required=True)
+    b.add_argument("--max-word", type=float, default=1.2, help="a word longer than this over 2+ bursts is suspect (s)")
+    b.add_argument("--per-word", type=float, default=0.6, help="an utterance slower than this per word is suspect (s)")
+    b.add_argument("--rel-db", type=float, default=-10.0)
+    b.add_argument("--wav-dir", required=True, help="where the burst wav pieces go")
+    b.add_argument("-o", "--output", required=True)
+    rt = sp.add_parser("retakes")
+    rt.add_argument("manifest")
+    rt.add_argument("--into", help="add the hidden retakes to this repeats.json (for cutlist.py build --remove)")
+    rt.add_argument("-o", "--output")
     a = ap.parse_args()
-    {"words": cmd_words, "review": cmd_review, "fix": cmd_fix, "repeats": cmd_repeats, "accept": cmd_accept}[a.cmd](a)
+    {"words": cmd_words, "review": cmd_review, "fix": cmd_fix, "repeats": cmd_repeats, "accept": cmd_accept,
+     "bursts": cmd_bursts, "retakes": cmd_retakes}[a.cmd](a)
 
 
 if __name__ == "__main__":

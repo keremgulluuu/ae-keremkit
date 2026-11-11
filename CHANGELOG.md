@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.10.1] - 2026-11-11
+
+### Added
+- Hidden retakes: `transcript.py bursts` finds spots where Whisper wrote several takes once and stretched a word over them (a word over 1.2 s, or a very slow utterance, across 2+ speech bursts) and cuts each burst into its own wav; after each is transcribed alone, `transcript.py retakes` removes every take but the last (`--into repeats.json`). On IMG_3810 it found exactly the known retakes plus a doubled intro.
+- `transcript.py repeats`: new `restart` kind for cut-off words in verbatim transcripts ("ürete- bunu Türkiye'de üretebilecek"), never reaching back over a sentence end; `[UH]`-style tags count as fillers, other sound tags are ignored.
+- CrisperWhisper 2.0 (verbatim) documented as a transcription option: tested on Turkish, it kept every retake and false start in one pass. Non-commercial licence noted.
+- premiere.md: preset transitions - import the preset sequences and unnest them onto the main timeline (a nest alone does not apply the adjustment layers to the video).
+
+### Fixed
+- `cutlist.py build` cut short silences inside words (the silent closure of "tt" in "sattı"). A silence under 0.25 s that reaches into a normal word is now kept (`in_word_gaps_kept`).
+
 ## [1.10.0] - 2026-11-11
 
 ### Added

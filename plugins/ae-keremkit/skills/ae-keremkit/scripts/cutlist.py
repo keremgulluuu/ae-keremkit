@@ -316,7 +316,17 @@ def cmd_build(a):
     if silences == []:
         mode = "words only (audio has no pauses below the threshold)"
         silences = None
-    loud = []
+    loud, inside = [], 0
+    if silences:
+        # never cut a silence inside a normal-length word: stop consonants ("sattı", "tt") are silent for ~0.1 s.
+        # Very long words are left alone here - they can hide retakes (transcript.py bursts).
+        normal = [(s, e) for s, e in word_iv if e - s <= 1.2]
+        # Whisper's word edges are loose, so a short silence (< 0.25 s) that reaches into a word's inside counts too
+        kept_sil = [(x, y) for x, y in silences
+                    if not any((s + 0.02 < x and y < e - 0.02) or (y - x < 0.25 and x < e - 0.05 and y > s + 0.05)
+                               for s, e in normal)]
+        inside = len(silences) - len(kept_sil)
+        silences = kept_sil
     if silences:
         # speech = audio that is not silent, kept only where Whisper heard words (drops coughs, clicks, noise)
         sounding = subtract([[0.0, dur]], [(x, min(y, dur)) for x, y in silences])
@@ -350,7 +360,8 @@ def cmd_build(a):
     rep_s = sum(y - x for x, y in removals)
     print(f"OK segments={len(cl['segments'])} source={fmt(dur)}s output={fmt(cl['out_duration'])}s "
           f"removed={fmt(removed)}s ({removed / dur * 100:.0f}%) preset={a.preset} mode={mode}"
-          + (f" repeats_removed={n_rem} ({rep_s:.1f}s)" if n_rem else ""))
+          + (f" repeats_removed={n_rem} ({rep_s:.1f}s)" if n_rem else "")
+          + (f" in_word_gaps_kept={inside}" if inside else ""))
     for x, y, lv in loud:
         print(f"WARN loud audio without words {fmt(x)}-{fmt(y)}s ({lv} dB) "
               + ("REMOVED (--drop-wordless)" if a.drop_wordless else "KEPT - ask the user; --drop-wordless removes it"))
