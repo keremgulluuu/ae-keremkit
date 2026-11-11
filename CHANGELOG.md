@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] - 2026-11-11
+
+### Changed
+- **No edit templates in the kit.** SKILL.md states it: every creative or taste rule (timings, SFX placement, animations, transitions, how clips meet, looks, text sync, framing) lives only in the user's styles; the kit provides mechanisms. Rules found during a build are saved into the style the user names.
+- Removed taste rules that 2.0.0 had put into the skill (riser peak on the cut, section clips never overlapping, intro texts on spoken words, a fixed framing rule) - they belong to one user's style. premiere.md, sound-effects.md, standards.md and edit-styles.md now describe only how to carry out such a rule when a style has one (word times from the transcript, measuring a sound's peak, scale from the real source size, checking how clips meet).
+- Motion and caption-animation defaults are suggestions offered to the user; the choice is saved into their style. The later-take default for retakes can be changed by a style.
+
 ## [2.0.0] - 2026-11-11
 
 ### Changed (breaking)

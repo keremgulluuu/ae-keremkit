@@ -29,8 +29,15 @@ KeremKit/
 ```
 
 - Find the folder with `python tools/keremkit.py where`. On `NOT_SET_UP` or a first request, follow `references/setup.md`.
-- **Tools version:** once per session run `keremkit.py version` (this skill is `KeremKit 2.0.0`). If it differs, say so in one line; update the tools only when the user asks.
+- **Tools version:** once per session run `keremkit.py version` (this skill is `KeremKit 2.0.1`). If it differs, say so in one line; update the tools only when the user asks.
 - **Tools:** keremkit.py, transcript.py, cutlist.py, subtitles.py, editplan.py, audio.py, sfx.py, qc.py, techniques.py, tokens.py, presets.py, videoref.py, previews.py, assets.py, digest.py, prproj.py, download.py, prbatch.py. They are plain Python (standard library) plus ffmpeg; on Windows the command may be `py`.
+
+## No edit templates - the user's styles decide
+
+The kit gives nobody an edit template. It makes managing the user's own edit styles easier, faster, cheaper and systematic. Every creative or taste rule belongs to the user's style, never to the kit:
+- timings, SFX placement, animations, transitions, how clips meet, looks, text sync, framing
+
+When the user states such a rule, or a build reveals one, save it into the style the user names; ask which style if it is unclear. Use global `custom_rules` only when the user says it is for every edit. The references describe mechanisms ("if the style asks for X, do it like this"), not taste.
 
 ## The skill is read-only - the kit grows in the home folder
 
@@ -41,7 +48,7 @@ Never edit, repackage or re-version this skill or `KeremKit/tools/`. What is lea
 - solved problems → `learning/known-issues.md`
 - designs → the library
 
-A real bug or wrong instruction in the skill goes into `learning/skill-change-requests.md` (file, problem, proposed change), plus one line to the user.
+A real bug, a missing mechanism or a wrong instruction in the skill (never a taste rule - that goes to the style) goes into `learning/skill-change-requests.md` (file, problem, proposed change), plus one line to the user.
 
 ## Preferences - remember everything, ask once
 

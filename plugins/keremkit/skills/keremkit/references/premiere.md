@@ -62,12 +62,13 @@ Direct MCP calls stay for a first look and for answers that decide the next step
 
 Opacity blend modes in a .prproj are numbers: 22 = Screen, 2 = Color Dodge, 18 = Normal (alphabetical index, `set_blend_mode`). `prproj.py inventory` prints the known names.
 
-## Building a style's video: per-video rules
+## Building a style's video: mechanisms for the style's own rules
 
-- **Intro texts on spoken words:** when an intro text matches a spoken word ("ürün", "part", the number), place its MOGRT and its SFX at that word's start in the corrected transcript, for every video. The style's fixed offsets are only a fallback. `import_mogrt` takes `start_seconds` / `duration_seconds`.
-- **Camera scale = sequence width / source width × 100**, from ffprobe for every source. A 2160x3840 iPhone clip in a 1080x1920 sequence = 50.
-- **Risers / whooshes into a cut:** measure the file's loudest point (RMS peak) and put that peak on the cut, not the file start.
-- **Section clips with in/out animations** end exactly at the next section cut. The previous OUT must finish before the next IN starts; never overlap them.
+Where things go, how they are timed and how they look is decided by the user's style, never by the kit (SKILL.md -> No edit templates). These are only the ways to carry out what a style says, per video:
+- **A style ties an element to a spoken word:** take that word's start from this video's corrected transcript. `import_mogrt` and `overwrite_clip` take the start and duration. Never copy the reference project's absolute times.
+- **A style places a sound by its loudest point:** measure the file's RMS peak (`standards.md` -> Measuring a sound's peak) and offset the clip by it.
+- **A style asks a clip to fill or fit the frame:** compute the scale from this source's size (`standards.md` -> Footage scale). Never copy a factor from another video.
+- **A style has a rule about how section clips meet** (overlap, gap, butt cut): check every pair of clips against it before placing, and read the spans back.
 - **Captions in the style's look:** use the style's caption MOGRT (`premiere.caption_mogrt`, AE-authored, one text field). Place one `import_mogrt` per cue through `prbatch.py` on an empty track. Without such a MOGRT, build the SRT and remind the user that a caption MOGRT is needed; never fake the look.
 - **Style template project** (`styles/<slug>/template.prproj`, made from a copy): one ready example of each effect-heavy part (product nest with its two Transform effects, film-burn presets, SFX with levels). Import the needed sequence, place the template clip in the work sequence, `copy_effects_between_clips` to each target, then delete it. Keep the template small: one sequence per part.
 - **MOGRTs the user still has to fix** (a note in the style): place them as usual, and remind the user at the start and in the final report until they say they are fixed. Never edit or re-export them.

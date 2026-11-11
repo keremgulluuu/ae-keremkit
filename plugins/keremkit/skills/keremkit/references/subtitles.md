@@ -75,4 +75,4 @@ After any change (rules, cut fixes): rebuild `subs.json` at the same path -> `fo
 
 ## Animation of cues
 
-Entrance/exit motion (pop, fade, slide) belongs to the style or `subtitles.look`. Implement with an animator whose expression uses the current cue's start/end (`c.s`, `c.e` from the same data) so every cue animates without keyframes. Keep it subtle unless the style says otherwise; typical: 4-6 frame ease-out scale 90->100 % with opacity.
+Entrance/exit motion (pop, fade, slide) belongs to the style or `subtitles.look`. Implement with an animator whose expression uses the current cue's start/end (`c.s`, `c.e` from the same data) so every cue animates without keyframes. With no style rule, suggest a subtle option (e.g. 4-6 frame ease-out scale 90->100 % with opacity) and save the user's choice into the style or `subtitles.look`.

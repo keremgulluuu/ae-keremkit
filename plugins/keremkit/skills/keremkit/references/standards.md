@@ -47,7 +47,10 @@ Text and key UI inside title-safe; decoration inside action-safe; backgrounds fu
 
 New comps: `standards.default_comp[<format>]` = [width, height, fps]. One frame rate per project; conform mismatched footage (`footage.interpret`) or tell the user. Cut files from `cutlist.py` are constant-frame-rate.
 
-## Motion defaults (when neither style nor house style says otherwise)
+## Motion starting points (only when neither the style nor house-style.md says anything)
+
+These are suggestions, not the kit's taste. Say which ones you are about to use in one line. Whatever the user keeps or changes goes into their style (or `house-style.md` if it is for every edit), so the next edit follows the user, not these values.
+
 
 - Entrances ease-out, exits ease-in, A-to-B moves ease-in-out; linear only for continuous loops.
 - At 30 fps: UI pop/entrance 8-14 frames, big title 12-20, transitions 10-20.
@@ -86,4 +89,8 @@ Presets saved with KeremKit: `<presets.root>/<Folder>/KK <Category word> <Name> 
 
 ## Footage scale
 
-Scale a camera or footage clip to the frame as **sequence/comp width ÷ source width × 100**, read from ffprobe for every source. Never copy a factor from another video: a 2160x3840 iPhone clip in a 1080x1920 sequence is 50 %, a 720x1280 clip is 150 %.
+When a style or the user wants a clip to fit the frame width, the scale is **sequence/comp width ÷ source width × 100**, with the width read from ffprobe for every source (a 2160x3840 clip in a 1080x1920 sequence = 50 %). Fill, crop or any other framing is the style's choice; compute it from the real sizes the same way. Never copy a factor from another video.
+
+## Measuring a sound's peak
+
+The loudest moment of a file: ffmpeg `astats` per 10 ms windows (or `audio.py analyze`), and take the RMS maximum's time. Use it when a style or the user places a sound by its peak.

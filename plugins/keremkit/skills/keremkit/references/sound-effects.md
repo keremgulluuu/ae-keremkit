@@ -22,7 +22,7 @@ Global limits (preferences): `level_db` default level, `min_gap_s` (no two SFX c
 
 ## Placing SFX
 
-Risers, whooshes and swells that lead into a cut: measure where the file is loudest (RMS peak, e.g. `audio.py` / ffmpeg astats per 10 ms) and put **that peak on the cut**, not the file's start. Example: Riser2.wav peaks at 5.475 s, so it starts 5.475 s before the cut.
+Where a sound goes and how it lines up (its start, its loudest point, a fixed offset) is the style's or the user's rule. When a rule refers to a sound's loudest point, measure it (`standards.md` -> Measuring a sound's peak) instead of guessing from the file start.
 
 
 1. Collect the events from the timeline plan / what was placed (transition times, UI in-points, highlight times from `subs.json`).

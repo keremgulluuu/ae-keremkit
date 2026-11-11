@@ -79,7 +79,7 @@ Wait for the answer before building subtitles from the unsure ones. The user can
 
 Sound tags (`[laughter]`, `[sniff]`) are ignored here; the silence cut treats them like any wordless sound.
 
-The **later** take is always kept - speakers repeat to correct themselves. The removed range runs from the first take's start to the kept take's start, so no gap is left.
+By default the **later** take is kept, since speakers repeat to correct themselves. A style or the user can choose otherwise. The removed range runs from the first take's start to the kept take's start, so no gap is left.
 
 Preference `cutting.repeats`: `auto` (apply high-confidence, ask the rest - default when null after asking once), `ask` (ask about all), `off`. Report like corrections:
 
