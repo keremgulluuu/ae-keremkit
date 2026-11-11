@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.11.0] - 2026-11-11
+
+### Added
+- **Free 3D sources** in `assets.py`: Sketchfab (downloadable CC0 models, including Smithsonian and museum scans; downloads use the user's free API token), NASA 3D Resources (spacecraft, planets, asteroids as `.glb`), ambientCG (CC0 materials, HDRIs and models; materials are unpacked into a folder), Poly Pizza (low-poly models, free key). `assets.py links model` adds Quaternius, Kenney 3D and Smithsonian 3D. assets.md explains using `.glb` models in After Effects 2024+.
+- premiere.md / style: intro text from an After Effects MOGRT placed with `import_mogrt`, every text field written and read back (tested with a four-field template).
+
+### Fixed
+- `subtitles.py` skips verbatim sound tags (`[laughter]`, `[UH]`) so they never reach captions.
+- Poly Haven model sizes were shown as pixel sizes (they are millimetres).
+- `keremkit.py reindex` / `add-many` printed a decode error on Windows with non-ASCII names.
+
 ## [1.10.1] - 2026-11-11
 
 ### Added

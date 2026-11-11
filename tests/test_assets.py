@@ -134,3 +134,54 @@ def test_prefs_defaults(tmp_path):
     get = lambda k: run("keremkit.py", "--home", tmp_path / "KK", "pref", "get", k).stdout.strip().strip('"')
     assert get("logos.confirm") == "ask" and get("assets.allow_attribution") == "false"
     assert (tmp_path / "KK" / "tools" / "assets.py").exists()
+
+
+# ---------------------------------------------------------------- 3D sources (recorded API shapes, 2026-11-11)
+FIXTURES_3D = {
+    "ambientcg.com/api/v2": {"foundAssets": [
+        {"assetId": "Wood096", "dataType": "Material", "displayName": "Wood 096", "shortLink": "https://ambientcg.com/a/Wood096",
+         "downloadCount": 9, "previewImage": {"256-PNG": "https://acg/t.png"},
+         "downloadFolders": {"default": {"downloadFiletypeCategories": {"zip": {"downloads": [
+             {"downloadLink": "https://ambientcg.com/get?file=Wood096_1K-JPG.zip", "fileName": "Wood096_1K-JPG.zip", "attribute": "1K-JPG", "size": 1},
+             {"downloadLink": "https://ambientcg.com/get?file=Wood096_2K-JPG.zip", "fileName": "Wood096_2K-JPG.zip", "attribute": "2K-JPG", "size": 2}]}}}}},
+        {"assetId": "DaySky", "dataType": "HDRI", "displayName": "Day Sky", "downloadFolders": {}}]},
+    "api.sketchfab.com/v3/search": {"results": [
+        {"uid": "abc", "name": "Side Chair", "viewerUrl": "https://sketchfab.com/3d-models/x-abc", "user": {"username": "Smithsonian"},
+         "faceCount": 100, "likeCount": 3, "thumbnails": {"images": [{"url": "https://sf/1024.jpg", "width": 1024},
+                                                                     {"url": "https://sf/256.jpg", "width": 256}]}}]},
+    "nasa/NASA-3D-Resources/git/trees": {"tree": [
+        {"path": "3D Models/Hubble/Hubble.glb", "type": "blob"}, {"path": "3D Models/Hubble/Hubble.jpg", "type": "blob"},
+        {"path": "3D Models/Mars/Mars.stl", "type": "blob"}, {"path": "3D Models/Hubble", "type": "tree"}]},
+    "api.poly.pizza": {"results": [
+        {"ID": "p1", "Title": "Low Poly Tree", "Download": "https://pp/tree.glb", "Licence": "CC0 1.0", "Creator": {"Username": "Quaternius"}},
+        {"ID": "p2", "Title": "Tree Pack", "Download": "https://pp/pack.glb", "Licence": "CC-BY 3.0"}]},
+}
+
+
+def test_3d_sources(home, monkeypatch):
+    h, _ = home
+
+    def fake(url, headers=None, timeout=20, raw=False):
+        for k, v in FIXTURES_3D.items():
+            if k in url:
+                return v
+        raise assets.Skip("no connection (test)")
+    monkeypatch.setattr(assets, "fetch", fake)
+    acg = assets.p_ambientcg(h, "wood", 5, "texture", False)
+    assert [a["title"] for a in acg] == ["Wood 096"] and acg[0]["url"].endswith("2K-JPG.zip") and acg[0]["license"] == "CC0"
+    assert assets.p_ambientcg(h, "sky", 5, "hdri", False) == []          # an asset without downloads is skipped
+    sf = assets.p_sketchfab(h, "chair", 3, "model", False)[0]
+    assert sf["license"] == "CC0" and sf["url"] == "abc" and sf["thumb"] == "https://sf/256.jpg" and not sf["credit"]
+    nasa = assets.p_nasa(h, "hubble", 3, "model", False)
+    assert len(nasa) == 1 and nasa[0]["url"].endswith("Hubble/Hubble.glb") and nasa[0]["thumb"].endswith("Hubble.jpg")
+    with pytest.raises(assets.Skip):
+        assets.p_polypizza(h, "tree", 3, "model", False)                 # no key
+    keys = json.loads(open(os.path.join(h, "settings", "keys.json")).read())
+    keys["polypizza"] = "k"
+    open(os.path.join(h, "settings", "keys.json"), "w").write(json.dumps(keys))
+    pp = assets.p_polypizza(h, "tree", 3, "model", False)
+    assert [p["title"] for p in pp] == ["Low Poly Tree"]
+    assert len(assets.p_polypizza(h, "tree", 3, "model", True)) == 2
+    with pytest.raises(assets.Skip, match="API token"):
+        assets.download(h, sf, os.path.join(h, "dl"))                    # Sketchfab download needs the user's token
+    assert set(assets.TYPES["model"]) >= {"polyhaven", "sketchfab", "nasa", "ambientcg", "polypizza"}

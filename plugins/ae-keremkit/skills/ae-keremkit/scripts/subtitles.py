@@ -126,7 +126,7 @@ def load_words(path):
     out = []
     for w in raw:
         t = (w.get("word") or w.get("text") or "").strip()
-        if t:
+        if t and not (t.startswith("[") and t.endswith("]")):   # verbatim sound tags: [laughter], [UH]
             out.append([w.get("start"), w.get("end"), t])
     if not out:
         sys.exit(f"ERROR: {path} contains no words (was Whisper run with word timestamps?)")

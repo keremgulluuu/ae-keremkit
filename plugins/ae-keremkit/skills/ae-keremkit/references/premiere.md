@@ -35,6 +35,8 @@ The kit edits in After Effects first; Premiere is a second target for the same w
 - **Caption style:** `create_caption_track` from an SRT works but uses Premiere's default caption style and cannot be read back (`committed_unverified`).
 - **Clip speed** cannot be changed; clip In/Out on placement is not available in `overwrite_clip`.
 
+**Tested route (2026-11-11):** an After Effects-authored `.mogrt` (definition.json `authorApp: aefx`) with its text fields exposed. One template may hold several fields (the Ecomelih intro has four: Satır 1-4). `import_mogrt` with `text_values: {"<field name>": "<text>", ...}` writes every field and reads it back (`textChecks` all `verified`). Premiere-authored graphics (`.aegraphic` only) stay unreadable by scripts. Field names come from the .mogrt's definition.json (`clientControls[].uiName`) - read them with a few lines of Python instead of guessing.
+
 **Text routes (decide per style, record it in the style's `premiere.text_route`):**
 1. **Titles / intro text:** build the look in After Effects (KeremKit's own path), export it as a `.mogrt` with the text, font size and colours exposed as properties, then `import_mogrt` and set the text. One .mogrt per text look; keep them in the library.
 2. **Captions:** `subtitles.py build` -> `subs.srt` -> `create_caption_track` (or the user imports the SRT) -> the user runs "Upgrade Caption to Graphic" once and saves a Track Style; tell them the exact steps.

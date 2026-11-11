@@ -9,7 +9,9 @@
   logo   NAME [NAME ...] -o DIR [--mono]     a brand logo straight away (colour SVG/PNG, else one-colour SVG)
   links  TYPE "QUERY"                        search pages of free sites without an API (templates, MOGRT, music...)
   import FILE [FILE ...] -o DIR --source S --license L [--url U]   record a file the user downloaded by hand
-  keys   [set NAME=VALUE]                    which API keys are set (values never printed); pexels, pixabay, freesound
+  keys   [set NAME=VALUE]                    which API keys are set (values never printed); pexels, pixabay, freesound,
+                                             sketchfab (token, for model downloads), polypizza
+  3D: model = Poly Haven, Sketchfab (CC0, incl. Smithsonian scans), NASA, ambientCG, Poly Pizza; texture / hdri also ambientCG
 
 Only licences that need no credit are listed by default: CC0, public domain, the Pexels and Pixabay licences,
 MIT / Apache / ISC / BSD / OFL (icons, fonts). Standard library only; images are never shown to Claude.
@@ -31,7 +33,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-UA = "KeremKit/1.8 (+https://github.com/keremgulluuu/ae-keremkit)"
+UA = "KeremKit/1.11 (+https://github.com/keremgulluuu/ae-keremkit)"
 TTL = 24 * 3600
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
@@ -49,13 +51,14 @@ TYPES = {
     "music": ["openverse-audio", "freesound"],
     "icon": ["iconify"],
     "logo": ["dashboard", "simpleicons"],
-    "texture": ["polyhaven"],
-    "hdri": ["polyhaven"],
-    "model": ["polyhaven"],
+    "texture": ["polyhaven", "ambientcg"],
+    "hdri": ["polyhaven", "ambientcg"],
+    "model": ["polyhaven", "sketchfab", "nasa", "ambientcg", "polypizza"],
     "font": ["fontsource"],
 }
 QUERY_ADD = {"greenscreen": "green screen", "overlay": "overlay", "background": "background"}
-KEYS = {"pexels": "PEXELS_API_KEY", "pixabay": "PIXABAY_API_KEY", "freesound": "FREESOUND_API_KEY"}
+KEYS = {"pexels": "PEXELS_API_KEY", "pixabay": "PIXABAY_API_KEY", "freesound": "FREESOUND_API_KEY",
+        "sketchfab": "SKETCHFAB_API_TOKEN", "polypizza": "POLYPIZZA_API_KEY"}
 
 LINKS = {
     "template": [("Mixkit After Effects templates (Mixkit Free License - check each item)", "https://mixkit.co/free-after-effects-templates/"),
@@ -72,11 +75,18 @@ LINKS = {
               ("Pexels videos", "https://www.pexels.com/search/videos/{q}/"),
               ("Pixabay videos", "https://pixabay.com/videos/search/{q}/")],
     "game": [("Kenney - CC0 game and UI assets", "https://kenney.nl/assets")],
+    "model": [("Quaternius - CC0 low-poly packs (characters, nature, vehicles; glTF/FBX)", "https://quaternius.com/"),
+              ("Kenney 3D - CC0 kits", "https://kenney.nl/assets/category:3D"),
+              ("Smithsonian 3D - CC0 museum scans", "https://3d.si.edu/explore"),
+              ("NASA 3D Resources", "https://science.nasa.gov/3d-resources/"),
+              ("Sketchfab, CC0 + downloadable", "https://sketchfab.com/search?features=downloadable&licenses=7c23a1ba438d4306920229c12afcb5f9&q={q}&type=models"),
+              ("Poly Pizza (CC0 filter)", "https://poly.pizza/search/{q}")],
     "preset": [("Presets (.ffx / .prfpset) have no trustworthy free API: download by hand, then `assets.py import` and `presets.py learn`", "")],
 }
 LINKS["greenscreen"] = LINKS["overlay"] = LINKS["background"] = LINKS["video"]
 LINKS["aep"] = LINKS["project"] = LINKS["template"]
 LINKS["prfpset"] = LINKS["ffx"] = LINKS["preset"]
+LINKS["3d"] = LINKS["model"]
 
 
 # ---------------------------------------------------------------- basics
@@ -346,12 +356,103 @@ def p_polyhaven(home, q, n, kind, allow):
     for aid, a in data.items():
         text = " ".join([aid, a.get("name", ""), " ".join(a.get("tags", [])), " ".join(a.get("categories", []))])
         if hit(text, q):
+            # model dimensions are millimetres (floats), not pixels - only show pixel sizes
+            dims = (a.get("dimensions") or [None, None])[:2] if t != "models" else [None, None]
+            dims = [int(round(d)) if isinstance(d, (int, float)) else None for d in dims]
             out.append(item("polyhaven", kind, a.get("name", aid), aid, "CC0", f"https://polyhaven.com/a/{aid}",
-                            ", ".join(a.get("authors", {}).keys()), *(a.get("dimensions") or [None, None])[:2],
+                            ", ".join(a.get("authors", {}).keys()), *dims,
                             thumb=f"https://cdn.polyhaven.com/asset_img/thumbs/{aid}.png?width=256&height=256",
                             ext={"textures": "jpg", "hdris": "hdr", "models": "gltf"}[t],
                             extra={"downloads": a.get("download_count", 0)}))
     return sorted(out, key=lambda r: -r["extra"]["downloads"])[:n]
+
+
+ACG_TYPE = {"texture": "Material", "hdri": "HDRI", "model": "3DModel"}
+ACG_RES = {"texture": ("2K-JPG", "1K-JPG"), "hdri": ("2K-HDR", "1K-HDR", "4K-HDR"), "model": ()}
+
+
+def p_ambientcg(home, q, n, kind, allow):
+    """ambientCG: CC0 PBR materials, HDRIs and 3D models (no key). The API ignores its type filter -> filter here."""
+    url = ("https://ambientcg.com/api/v2/full_json?" +
+           urllib.parse.urlencode({"q": q, "limit": 80, "include": "downloadData,imageData", "sort": "Popular"}))
+    data = fetch(url, timeout=30)
+    out = []
+    for a in data.get("foundAssets", []):
+        if a.get("dataType") != ACG_TYPE[kind]:
+            continue
+        dls = []
+        for folder in (a.get("downloadFolders") or {}).values():
+            for cat in (folder.get("downloadFiletypeCategories") or {}).values():
+                dls += cat.get("downloads") or []
+        if not dls:
+            continue
+        pick = next((d for want in ACG_RES[kind] for d in dls if d.get("attribute") == want), dls[0])
+        img = a.get("previewImage") or {}
+        out.append(item("ambientcg", kind, a.get("displayName") or a["assetId"], pick.get("downloadLink") or pick.get("fullDownloadPath"),
+                        "CC0", a.get("shortLink", ""), "ambientCG", thumb=img.get("256-PNG", ""), ext="zip",
+                        extra={"downloads": a.get("downloadCount", 0), "file": pick.get("fileName"),
+                               "size_mb": round((pick.get("size") or 0) / 1e6, 1)}))
+    return out[:n]
+
+
+SKETCHFAB_LIC = {"cc0": "CC0", "by": "CC BY 4.0"}
+
+
+def p_sketchfab(home, q, n, kind, allow):
+    """Sketchfab: downloadable CC0 models (incl. Smithsonian and museum scans); CC BY too with --allow-attribution.
+    Search needs no key; downloading needs the user's free API token (assets.py keys set sketchfab=...)."""
+    out = []
+    for lic in (["cc0", "by"] if allow else ["cc0"]):
+        url = "https://api.sketchfab.com/v3/search?" + urllib.parse.urlencode(
+            {"type": "models", "q": q, "downloadable": "true", "license": lic, "count": min(24, n * 2), "sort_by": "-likeCount"})
+        for r in fetch(url, timeout=30).get("results", []):
+            thumbs = sorted((r.get("thumbnails") or {}).get("images") or [], key=lambda t: abs((t.get("width") or 0) - 256))
+            out.append(item("sketchfab", "model", r.get("name", ""), r.get("uid", ""), SKETCHFAB_LIC[lic], r.get("viewerUrl", ""),
+                            (r.get("user") or {}).get("username", ""), thumb=thumbs[0]["url"] if thumbs else "", ext="glb",
+                            credit=lic != "cc0", extra={"faces": r.get("faceCount"), "likes": r.get("likeCount", 0)}))
+    return out[:n]
+
+
+NASA_REPO = "https://api.github.com/repos/nasa/NASA-3D-Resources/git/trees/master?recursive=1"
+NASA_RAW = "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/"
+
+
+def p_nasa(home, q, n, kind, allow):
+    """NASA 3D Resources (GitHub): spacecraft, planets, asteroids as .glb. Not copyrighted; NASA's media guidelines apply
+    (no endorsement, no NASA logo use)."""
+    tree = cached(home, "nasa-3d-tree", 7 * TTL, lambda: fetch(NASA_REPO, timeout=60))
+    paths = [t["path"] for t in tree.get("tree", []) if t.get("type") == "blob"]
+    imgs = {p.rsplit("/", 1)[0]: p for p in paths if p.lower().endswith((".jpg", ".png"))}
+    out = []
+    for p in paths:
+        if not p.lower().endswith(".glb") or not hit(p, q):
+            continue
+        folder = p.rsplit("/", 1)[0]
+        thumb = NASA_RAW + urllib.parse.quote(imgs[folder]) if folder in imgs else ""
+        out.append(item("nasa", "model", folder.split("/")[-1], NASA_RAW + urllib.parse.quote(p),
+                        "NASA (no copyright; no endorsement)", "https://science.nasa.gov/3d-resources/", "NASA",
+                        thumb=thumb, ext="glb"))
+    return out[:n]
+
+
+def p_polypizza(home, q, n, kind, allow):
+    """Poly Pizza: low-poly models (many from Quaternius, Kenney, Google Poly). Needs a free key (poly.pizza/settings/api)."""
+    k = keys(home).get("polypizza")
+    if not k:
+        raise Skip("needs a free API key (poly.pizza): assets.py keys set polypizza=...")
+    data = fetch(f"https://api.poly.pizza/v1.1/search/{urllib.parse.quote(q)}?Limit={min(32, n * 3)}",
+                 headers={"x-auth-token": k})
+    out = []
+    for r in data.get("results", []):
+        lic = str(r.get("Licence") or r.get("License") or "")
+        cc0 = "cc0" in lic.lower() or "public" in lic.lower()
+        if not cc0 and not allow:
+            continue
+        rid = r.get("ID") or r.get("PublicID") or ""
+        out.append(item("polypizza", "model", r.get("Title", ""), r.get("Download", ""), "CC0" if cc0 else lic or "CC BY 3.0",
+                        f"https://poly.pizza/m/{rid}", (r.get("Creator") or {}).get("Username", ""),
+                        thumb=r.get("Thumbnail", ""), ext="glb", credit=not cc0))
+    return out[:n]
 
 
 def p_fontsource(home, q, n, kind, allow):
@@ -385,6 +486,10 @@ PROVIDERS = {
     "dashboard": p_dashboard,
     "simpleicons": p_simpleicons,
     "polyhaven": p_polyhaven,
+    "ambientcg": p_ambientcg,
+    "sketchfab": p_sketchfab,
+    "nasa": p_nasa,
+    "polypizza": p_polypizza,
     "fontsource": p_fontsource,
 }
 
@@ -533,6 +638,16 @@ def download(home, r, dest, fmt_=None):
             files.append((g["url"], base + ".gltf"))
             for rel, v in (g.get("include") or {}).items():
                 files.append((v["url"], rel))
+    elif r["src"] == "sketchfab":
+        tok = keys(home).get("sketchfab")
+        if not tok:
+            raise Skip("downloading from Sketchfab needs the user's free API token (sketchfab.com > Settings > Password & API): "
+                       f"assets.py keys set sketchfab=...  - or download it by hand from {r.get('page')} and use assets.py import")
+        info = fetch(f"https://api.sketchfab.com/v3/models/{r['url']}/download", headers={"Authorization": f"Token {tok}"})
+        g = info.get("glb") or info.get("gltf")
+        if not g:
+            raise Skip("no glb/gltf download offered for this model")
+        files.append((g["url"], base + (".glb" if "glb" in info else ".zip")))
     elif r["src"] == "fontsource":
         info = fetch(f"https://api.fontsource.org/v1/fonts/{r['url']}")
         var = info.get("variants", {})
@@ -555,6 +670,16 @@ def download(home, r, dest, fmt_=None):
         with open(p, "wb") as f:
             f.write(fetch(u, raw=True, timeout=120))
         saved.append(p)
+    if r["src"] == "ambientcg" and saved and saved[0].lower().endswith(".zip"):
+        import zipfile
+        folder = os.path.splitext(saved[0])[0]
+        with zipfile.ZipFile(saved[0]) as z:
+            for m in z.namelist():                     # refuse paths that leave the folder
+                if os.path.isabs(m) or ".." in m.replace("\\", "/").split("/"):
+                    raise Skip(f"unsafe path in zip: {m}")
+            z.extractall(folder)
+        os.remove(saved[0])
+        saved = [folder] + [os.path.join(folder, m) for m in sorted(os.listdir(folder))]
     if r["src"] == "simpleicons" and (r.get("extra") or {}).get("hex") and saved:
         with open(saved[0], encoding="utf-8") as f:
             svg = f.read()

@@ -35,7 +35,7 @@ KeremKit/
 
 Locate it with `python tools/keremkit.py where` (reads `~/.keremkit.json`; default `~/Documents/KeremKit`). On `NOT_SET_UP`, or the user's first KeremKit request, run `references/setup.md` first.
 
-**Tools version:** once per session, `python tools/keremkit.py version` (this skill is `KeremKit 1.10.1`). If it differs or fails, say so in one line ("KeremKit tools are older than the skill - say 'update KeremKit' to update them") and carry on with what works. Update the tools (`scripts/keremkit.py init`, or copying `scripts/` into `KeremKit/tools/`) **only when the user asks for exactly that**.
+**Tools version:** once per session, `python tools/keremkit.py version` (this skill is `KeremKit 1.11.0`). If it differs or fails, say so in one line ("KeremKit tools are older than the skill - say 'update KeremKit' to update them") and carry on with what works. Update the tools (`scripts/keremkit.py init`, or copying `scripts/` into `KeremKit/tools/`) **only when the user asks for exactly that**.
 
 ## The skill is read-only - the kit grows in the home folder
 

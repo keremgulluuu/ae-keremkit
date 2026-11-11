@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.10.1"
+KIT_VERSION = "1.11.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -553,7 +553,8 @@ def cmd_reindex(a):
     ok = bad = 0
     for p in sorted(keep_paths):
         r = subprocess.run([sys.executable, os.path.abspath(__file__), "--home", h, "add", p],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           env=dict(os.environ, PYTHONIOENCODING="utf-8"))
         if r.returncode == 0:
             ok += 1
         else:
@@ -788,7 +789,8 @@ def cmd_add_many(a):
         meta.setdefault("version", 1)
         meta.setdefault("changes", [])
         wjson(mp, meta)
-        r_ = subprocess.run([sys.executable, os.path.abspath(__file__), "--home", h, "add", mp], capture_output=True, text=True)
+        r_ = subprocess.run([sys.executable, os.path.abspath(__file__), "--home", h, "add", mp], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", env=dict(os.environ, PYTHONIOENCODING="utf-8"))
         if r_.returncode:
             print(f"ERROR\t{row['id']}\t{(r_.stderr or r_.stdout).strip()}")
             continue

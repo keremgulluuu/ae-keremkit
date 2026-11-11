@@ -21,12 +21,21 @@ Only licences that need **no credit** are listed (CC0, public domain, Pexels, Pi
 | music | Openverse audio (CC0/PD), Freesound (CC0) | - |
 | icon | Iconify (permissively licensed sets only) | - |
 | logo | Dashboard Icons (colour), Simple Icons (one colour) | - |
-| texture, hdri, model | Poly Haven (CC0) | - |
+| texture, hdri | Poly Haven, ambientCG (CC0) | - |
+| model | Poly Haven, Sketchfab (CC0 + downloadable, incl. Smithsonian/museum scans), NASA 3D Resources, ambientCG, Poly Pizza | Sketchfab: search free, **download needs the user's free API token** (`keys set sketchfab=...`); Poly Pizza: free key |
 | font | Fontsource (Google Fonts, OFL/Apache) - the user installs the .ttf | - |
 
 `SKIPPED pexels: no key` -> the source needs a free API key: tell the user once where to get it (pexels.com/api, pixabay.com/api/docs, freesound.org/apiv2/apply) and save it with `assets.py keys set pexels=...` - stored only in `KeremKit/settings/keys.json`, never in memory, logs or replies. Without keys the other sources still work.
 
 `some sources are not reachable` -> the shell has no access to those sites (e.g. a cloud workspace). GitHub-hosted sources (logos) usually still work; for the rest run the tool on the user's computer, or use links.
+
+## 3D models in After Effects
+
+- Search: `assets.py search model "<words>"` (and `texture` / `hdri` for materials and lighting). Prefer `.glb` - one file with textures inside. More sites without an API: `assets.py links model "<words>"` (Quaternius, Kenney 3D, Smithsonian 3D...).
+- NASA models are not copyrighted, but NASA's media guidelines apply: no endorsement implied, no NASA logo/insignia use. Sketchfab CC BY models (only with `--allow-attribution`) need the credit line from SOURCES.md.
+- ambientCG materials arrive unpacked into a folder (colour, normal, roughness, displacement maps).
+- After Effects 2024+ imports `.glb` / `.gltf` / `.obj` as 3D model layers (Advanced 3D renderer): import the file, set the comp renderer to Advanced 3D, light it with an environment light (an `.hdr` from the hdri search). Older AE: a 3D plugin (Element 3D) or a pre-rendered video. Check the user's AE version (`ae_context`) before promising native 3D.
+- Heavy models (Sketchfab scans can be 100k+ faces): mention the face count from the search when it is large; render times grow.
 
 ## Sites without an API (templates, MOGRT, more music and sound)
 
