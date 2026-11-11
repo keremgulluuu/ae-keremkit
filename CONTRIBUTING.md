@@ -16,8 +16,8 @@ Please don't attach client footage.
 ## Working on the code
 
 ```bash
-git clone https://github.com/keremgulluuu/ae-keremkit.git
-cd ae-keremkit
+git clone https://github.com/keremgulluuu/keremkit.git
+cd keremkit
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
@@ -36,7 +36,7 @@ Guidelines:
 ## Releasing
 
 1. Move the `[Unreleased]` notes in `CHANGELOG.md` under the new version heading.
-2. Bump `version` in `plugins/ae-keremkit/.claude-plugin/plugin.json` to the same version.
+2. Bump `version` in `plugins/keremkit/.claude-plugin/plugin.json` to the same version.
 3. Tag `vX.Y.Z` and push the tag. The release workflow checks that the tag matches `plugin.json`, runs the tests, builds the claude.ai zip and attaches it to the release.
 
 The repository tests also check that the newest released `CHANGELOG.md` heading matches `plugin.json`, so the two cannot drift silently.

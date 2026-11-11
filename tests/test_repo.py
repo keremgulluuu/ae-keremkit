@@ -20,8 +20,8 @@ import zipfile
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLUGIN_DIR = os.path.join(ROOT, "plugins", "ae-keremkit")
-SKILL_DIR = os.path.join(PLUGIN_DIR, "skills", "ae-keremkit")
+PLUGIN_DIR = os.path.join(ROOT, "plugins", "keremkit")
+SKILL_DIR = os.path.join(PLUGIN_DIR, "skills", "keremkit")
 SCRIPTS = os.path.join(SKILL_DIR, "scripts")
 REFERENCES = os.path.join(SKILL_DIR, "references")
 TOOLS = (
@@ -42,6 +42,7 @@ TOOLS = (
     "digest.py",
     "prproj.py",
     "download.py",
+    "prbatch.py",
 )
 ASSET_FILES = ("techniques.json",)
 SKILL_FRONTMATTER_KEYS = {
@@ -83,7 +84,7 @@ def test_marketplace_and_plugin_metadata_agree():
 
     entries = {entry["name"]: entry for entry in marketplace["plugins"]}
     assert plugin["name"] in entries, "plugin is not listed in marketplace.json"
-    assert entries[plugin["name"]]["source"] == "./plugins/ae-keremkit"
+    assert entries[plugin["name"]]["source"] == "./plugins/keremkit"
     assert plugin["name"] == os.path.basename(PLUGIN_DIR)
     assert re.fullmatch(r"\d+\.\d+\.\d+", plugin["version"]), plugin["version"]
 
@@ -219,7 +220,7 @@ def test_all_python_files_parse_as_python_39():
 
 def test_build_skill_zip_is_portable(tmp_path):
     # Copy only what the builder needs so the real dist/ folder is never touched.
-    shutil.copytree(PLUGIN_DIR, tmp_path / "plugins" / "ae-keremkit")
+    shutil.copytree(PLUGIN_DIR, tmp_path / "plugins" / "keremkit")
     (tmp_path / "tools").mkdir()
     builder = os.path.join(ROOT, "tools", "build_skill.py")
     shutil.copy2(builder, tmp_path / "tools" / "build_skill.py")
@@ -233,16 +234,16 @@ def test_build_skill_zip_is_portable(tmp_path):
     )
     assert result.returncode == 0, result.stdout + result.stderr
 
-    plugin = load_json(tmp_path / "plugins" / "ae-keremkit" / ".claude-plugin" / "plugin.json")
-    archive = tmp_path / "dist" / f"ae-keremkit-{plugin['version']}.zip"
+    plugin = load_json(tmp_path / "plugins" / "keremkit" / ".claude-plugin" / "plugin.json")
+    archive = tmp_path / "dist" / f"keremkit-{plugin['version']}.zip"
     assert archive.exists()
 
     with zipfile.ZipFile(archive) as z:
         names = z.namelist()
 
     assert names
-    assert all(name.startswith("ae-keremkit/") for name in names)
+    assert all(name.startswith("keremkit/") for name in names)
     assert all("\\" not in name for name in names), "zip entries must use POSIX separators"
-    assert "ae-keremkit/SKILL.md" in names
+    assert "keremkit/SKILL.md" in names
     assert not any("__pycache__" in name or name.endswith(".pyc") for name in names)
     assert len(names) == len(set(names)), "zip contains duplicate entries"

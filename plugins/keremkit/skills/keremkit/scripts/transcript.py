@@ -166,6 +166,10 @@ def cmd_fix(a):
     applied, missed = [], []
     # index-based fixes first, from the end so earlier indices stay valid
     by_index = sorted((c for c in corr if "index" in c), key=lambda c: -int(c["index"]))
+    if by_index and isinstance(data, dict) and data.get("_kk_index_changed") and not a.force_index:
+        sys.exit("ERROR: an earlier fix added or deleted words in this file, so word indices no longer match "
+                 "`transcript.py words` of the raw file. Anchor these fixes by time + old text, or apply every index "
+                 "fix in ONE pass on the raw file (--force-index only if the indices were taken from THIS file).")
     for c in by_index:
         i = int(c["index"])
         if not 0 <= i < len(ws):
@@ -185,6 +189,8 @@ def cmd_fix(a):
                 item["corrected_from"] = text_of(w)
             items.append(item)
         old_text = text_of(w)
+        if len(items) != 1 and isinstance(data, dict):
+            data["_kk_index_changed"] = True
         replace_span(data, [w], items)
         ws = words_of(data)
         applied.append((s0, f"#{i} {old_text}", " ".join(new)))
@@ -220,6 +226,8 @@ def cmd_fix(a):
                     "probability": 1.0, "corrected_from": " ".join(text_of(x) for x in span) if k == 0 else None}
             new_words.append({k2: v for k2, v in item.items() if v is not None})
         # write back into the owning segment list
+        if len(new_words) != len(span) and isinstance(data, dict):
+            data["_kk_index_changed"] = True
         replace_span(data, span, new_words)
         ws = words_of(data)
         applied.append((s, " ".join(text_of(x) for x in span), " ".join(new)))
@@ -548,6 +556,8 @@ def main():
     f.add_argument("--corrections", required=True)
     f.add_argument("--tolerance", type=float, default=1.5, help="max distance (s) between given time and the word")
     f.add_argument("-o", "--output", required=True)
+    f.add_argument("--force-index", action="store_true",
+                   help="allow index fixes on a file whose word count was changed by an earlier fix")
     p = sp.add_parser("repeats")
     p.add_argument("words")
     p.add_argument("--window", type=float, default=15.0, help="how far apart a retake can be (s)")

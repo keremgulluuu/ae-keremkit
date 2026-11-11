@@ -17,6 +17,61 @@ The kit edits in After Effects first; Premiere is a second target for the same w
 - Prove saves on disk: `save_project` -> `keremkit.py stat <copy>`.
 - The MCP must be installed **before** the chat starts; tools registered mid-session are not loaded until a new session (`setup.md`).
 
+## New project: folder and names (ask once)
+
+Before creating a Premiere project or sequence, read `premiere.project_folder`, `premiere.project_naming` and `premiere.sequence_naming`. If one is null, ask once with the templates in `preferences.md`, then save the answer.
+- `projects`: save the project in `paths.projects`.
+- `next_to_video`: save it in `<video folder>/<video> - Bileşenler/`.
+- `ask`: ask the folder each time.
+
+Work copies of the user's existing projects still go to `library/_work/` (Safety, below).
+
+## Many calls: prbatch.py (token rule)
+
+More than ~5 calls in a row (a cut, intro MOGRTs, captions, SFX, keys) → write them into a plan and run `prbatch.py run plan.json`. It runs them in one server process and prints one line per step; the full answers go to `plan.results.json`.
+- Name the fields to print with `pick`.
+- Chain a preview to its apply with `save_as` / `token_from`.
+- The plan-level `expected_project_path` is added to every step.
+- It stops at the first error and always at a recovery lock.
+
+Direct MCP calls stay for a first look and for answers that decide the next step. `prbatch.py list <regex>` / `schema <tool>` look tools up without loading the schema into the chat.
+
+```json
+{"expected_project_path": "C:/.../IMG_3820_work.prproj",
+ "steps": [
+  {"tool": "import_mogrt", "args": {"mogrt_path": ".../Satır1.mogrt", "start_seconds": 0.30, "duration_seconds": 2.1, "track_index": 4, "text_values": {"Satır1": "ÜRÜN"}}, "pick": ["data.textVerification"]},
+  {"tool": "ripple_remove_timeline_ranges", "args": {"ranges": [...], "dry_run": true}, "save_as": "cut"},
+  {"tool": "ripple_remove_timeline_ranges", "args": {"ranges": [...]}, "token_from": "cut", "pick": ["data.verified"]}]}
+```
+
+## Known MCP limits (premiere-pro-mcp 1.30, CEP; seen in builds 2026-11-11)
+
+| Limit | Do instead |
+|---|---|
+| `import_mogrt` first lays the template at its own length, then trims: on a track with clips it **overwrites** them | place MOGRTs on empty tracks, or before other clips on that track; read the track back |
+| Name-based effect tools (`get_effect_properties`, `set_effect_property`, `add_keyframe`) reach only the **first** effect of a name; a second Transform cannot be keyed | copy both from a template clip (`copy_effects_between_clips`, same sequence) |
+| `copy_effects_between_clips` / `paste_clip_attributes` work only inside the active sequence | keep a template clip in the work sequence, copy, then delete it |
+| `unnest_sequence` places the parts at the right times but **drops every effect and keyframe** | effect-carrying presets: the user pastes attributes, or copy from a template clip in the same sequence |
+| Bezier speed/influence cannot be set (only "bezier") | copying keeps exact easing |
+| `add_keyframe` past the clip end → refused **and** recovery lock; `import_media` to a missing bin → same | key the last frame at exactly the clip duration; writes one at a time |
+| Premiere-authored MOGRT (`authorApp: ppro`) → "exposes no MGT component"; writing its text fails and locks | text MOGRTs must be After Effects-authored (`aefx`); check definition.json before using one, and tell the user if a style's MOGRT is `ppro` |
+| `overwrite_clip` of a nest adds an empty linked audio clip | remove it |
+| Clip speed cannot be changed | - |
+| 1920x1080 overlay in a 1080x1920 sequence comes in at Scale 56.25 | set the absolute scale (e.g. 178 to cover the height) |
+| `relink_media` can hang Premiere | import the file and `overwrite_clip` at the right time |
+
+Opacity blend modes in a .prproj are numbers: 22 = Screen, 2 = Color Dodge, 18 = Normal (alphabetical index, `set_blend_mode`). `prproj.py inventory` prints the known names.
+
+## Building a style's video: per-video rules
+
+- **Intro texts on spoken words:** when an intro text matches a spoken word ("ürün", "part", the number), place its MOGRT and its SFX at that word's start in the corrected transcript, for every video. The style's fixed offsets are only a fallback. `import_mogrt` takes `start_seconds` / `duration_seconds`.
+- **Camera scale = sequence width / source width × 100**, from ffprobe for every source. A 2160x3840 iPhone clip in a 1080x1920 sequence = 50.
+- **Risers / whooshes into a cut:** measure the file's loudest point (RMS peak) and put that peak on the cut, not the file start.
+- **Section clips with in/out animations** end exactly at the next section cut. The previous OUT must finish before the next IN starts; never overlap them.
+- **Captions in the style's look:** use the style's caption MOGRT (`premiere.caption_mogrt`, AE-authored, one text field). Place one `import_mogrt` per cue through `prbatch.py` on an empty track. Without such a MOGRT, build the SRT and remind the user that a caption MOGRT is needed; never fake the look.
+- **Style template project** (`styles/<slug>/template.prproj`, made from a copy): one ready example of each effect-heavy part (product nest with its two Transform effects, film-burn presets, SFX with levels). Import the needed sequence, place the template clip in the work sequence, `copy_effects_between_clips` to each target, then delete it. Keep the template small: one sequence per part.
+- **MOGRTs the user still has to fix** (a note in the style): place them as usual, and remind the user at the start and in the final report until they say they are fixed. Never edit or re-export them.
+
 ## What works through the MCP (tested 2026-11-11, premiere-pro-mcp 1.30.0, CEP bridge, Premiere 2026)
 
 | Job | Tool(s) | Note |

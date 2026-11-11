@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/keremgulluuu/ae-keremkit/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/keremgulluuu/ae-keremkit/tests.yml?branch=main&label=tests&labelColor=0A0C0F&color=C6FF3C&style=flat-square" alt="tests"></a>
+  <a href="https://github.com/keremgulluuu/keremkit/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/keremgulluuu/keremkit/tests.yml?branch=main&label=tests&labelColor=0A0C0F&color=C6FF3C&style=flat-square" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-C6FF3C?labelColor=0A0C0F&style=flat-square" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/After%20Effects-2024%2B-C6FF3C?labelColor=0A0C0F&style=flat-square" alt="After Effects 2024+">
   <img src="https://img.shields.io/badge/python-3.9%2B-C6FF3C?labelColor=0A0C0F&style=flat-square" alt="Python 3.9+">
@@ -28,6 +28,8 @@ It is built around one constraint: **every token counts**. Heavy work happens in
 - **Copy a look.** Point at a screenshot, a web page, CSS, an SVG, a Lottie file or a project. Its palette, type, radii, glows and easing become tokens you confirm, then an After Effects theme.
 - **Techniques on tap.** Ask "what can you do with the sound?" or "add some cuts" and get the options by name — loudness normalization, noise reduction, ducking, J-cut, L-cut, jump-cut zoom and more — with a one-line explanation each. Add your own techniques the same way.
 - **Premiere Pro too.** A cut goes to Premiere as an XML that imports with the media linked. With a Premiere MCP, Claude builds the sequence itself (cuts, effects, sound effects, export) on a copy of the project, and it can learn an edit style from a finished `.prproj`.
+- **Free elements, with their licence and a token estimate.** Photos, textures and backgrounds (Unsplash, Pexels, Pixabay, StockSnap), vectors and illustrations (unDraw, Wikimedia, Openverse, links to real `.ai`/`.eps` sources), icons, logos, PBR materials, HDRIs, 3D models, Lottie animations, fonts and sound. Everything lands in `KeremKit/assets/` with a SOURCES.md and an index, so nothing is downloaded twice. Ask "which sites can I use?" and Claude lists each site's strengths, everything it offers and what using it costs in tokens.
+- **Token budget.** Before each step Claude says what it will roughly cost (low / medium / high). Premiere builds run through a batch runner that turns dozens of tool answers into one line each, and the agent keeps notes on what was expensive so the kit gets cheaper with use.
 - **Download footage that imports.** Videos from YouTube, TikTok, Instagram and other sites, in the quality you name. *Premiere fix* downloads H.264 so Premiere takes it right away; *4K + repair* keeps 4K/60 and re-encodes it to H.264 so Premiere takes that too. Files that Premiere refuses can be repaired the same way.
 - **Clean, organised projects.** Layers are named, ordered and colour-labelled after every edit (your rules), a quality check runs before the final render, and one edit becomes 16:9, 9:16 and 1:1 versions.
 - **Preferences that stick.** Nothing is assumed. Each choice is asked once, when it matters, and remembered.
@@ -69,8 +71,16 @@ For the Claude desktop app and other options, follow the [server's README](https
 **Claude Code — from this repository (recommended):**
 
 ```bash
-claude plugin marketplace add keremgulluuu/ae-keremkit
-claude plugin install ae-keremkit@keremkit
+claude plugin marketplace add keremgulluuu/keremkit
+claude plugin install keremkit@keremkit
+```
+
+Updating from an older `ae-keremkit` install (before 2.0.0): remove the old plugin once, then install the new one:
+
+```bash
+claude plugin uninstall ae-keremkit@keremkit
+claude plugin marketplace update keremkit
+claude plugin install keremkit@keremkit
 ```
 
 Inside a session you can do the same with `/plugin marketplace add` and `/plugin install`. See Claude Code's [plugin docs](https://code.claude.com/docs/en/plugins/install) for updating and removing plugins.
@@ -78,11 +88,11 @@ Inside a session you can do the same with `/plugin marketplace add` and `/plugin
 **Claude Code — manually:**
 
 ```bash
-git clone https://github.com/keremgulluuu/ae-keremkit.git
-cp -r ae-keremkit/plugins/ae-keremkit/skills/ae-keremkit ~/.claude/skills/
+git clone https://github.com/keremgulluuu/keremkit.git
+cp -r keremkit/plugins/keremkit/skills/keremkit ~/.claude/skills/
 ```
 
-**Claude app (claude.ai / desktop):** download `ae-keremkit-<version>.zip` from [Releases](https://github.com/keremgulluuu/ae-keremkit/releases), then go to **Customize → Skills → + → Upload a skill**. Code execution must be enabled under *Settings → Capabilities*.
+**Claude app (claude.ai / desktop):** download `keremkit-<version>.zip` from [Releases](https://github.com/keremgulluuu/keremkit/releases), then go to **Customize → Skills → + → Upload a skill**. Code execution must be enabled under *Settings → Capabilities*.
 
 ### 3. First run
 
@@ -142,9 +152,9 @@ More detail: [usage](docs/usage.md) · [edit styles](docs/edit-styles.md) · [su
 
 ```
 .claude-plugin/marketplace.json        Claude Code marketplace entry
-plugins/ae-keremkit/
+plugins/keremkit/
   .claude-plugin/plugin.json
-  skills/ae-keremkit/
+  skills/keremkit/
     SKILL.md                           what Claude reads first
     references/                        loaded only when a task needs them
     scripts/                           transcript, cutlist, subtitles, editplan, audio, sfx, qc,
@@ -163,7 +173,7 @@ tools/make_art.py                      regenerates the README artwork
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest -q          # ffmpeg render test is skipped if ffmpeg is missing
-python tools/build_skill.py  # dist/ae-keremkit-<version>.zip
+python tools/build_skill.py  # dist/keremkit-<version>.zip
 ```
 
 `tests/test_repo.py` also checks repository consistency (metadata, docs links, changelog/version, the skill zip) without needing After Effects or media.

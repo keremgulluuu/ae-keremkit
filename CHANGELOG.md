@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-11-11
+
+### Changed (breaking)
+- **The kit is now called KeremKit.** Repository `keremgulluuu/keremkit`, plugin and skill `keremkit` (install `keremkit@keremkit`; remove the old `ae-keremkit` plugin once). The KeremKit home folder and all user data stay as they are.
+- SKILL.md is shorter (14 KB -> 10 KB) and read every session; details moved into the references.
+
+### Added
+- **Free sources:** Unsplash (free key; download ping and photographer recorded), StockSnap (CC0, previews + page), unDraw (SVG illustrations), Wikimedia and Openverse SVG (new `vector` type), LottieFiles (new `lottie` type). Link lists for real `.ai`/`.eps` vectors (Public Domain Vectors, Vector4Free, Getillustrations; Vecteezy/Freepik with credit), textures (Lost and Taken), photos (Kaboompics, Magdeleine, Burst) and gradients (Gradienta).
+- `assets.py sources [type] [--full]`: what each site is best at, everything it offers, licence, key and token cost (az / orta / çok); assets.md tells the agent how to answer "what can I download?".
+- Downloads land in `KeremKit/assets/<type>/<source>/` with SOURCES.md and `assets/INDEX.tsv`; `assets.py have` and `search` show what is already there (videos from download.py excepted).
+- **Token budget** (`references/token-budget.md`): a cost estimate before every operation, typical costs for After Effects and Premiere, saving rules.
+- **Agent notes:** after every task the agent writes `learning/token-notes.md` (what was expensive, what saved tokens, proposals - plainly and completely) and a session report in `learning/sessions/`, and gives the user its path.
+- `prbatch.py`: runs a plan of Premiere MCP calls in one server process, one line per step, full answers to a file; preview tokens across steps; stops at the first error and at recovery locks.
+- Premiere preferences `premiere.project_folder`, `project_naming`, `sequence_naming`, asked once; `tools.premiere_mcp.command`.
+- premiere.md: known MCP limits with workarounds, intro texts and SFX on spoken words, camera scale from each source, riser peaks on the cut, section clips that never overlap, caption MOGRT per cue through prbatch, style template project, reminders for MOGRTs the user must fix.
+- `prproj.py inventory` names blend modes (22 Screen, 2 Color Dodge, 18 Normal).
+- `keremkit.py init` creates `assets/`, `library/mogrt/`, `learning/sessions/` and `learning/token-notes.md`.
+
+### Fixed
+- `transcript.py fix` refuses index-based fixes on a file whose word count an earlier fix changed (indices would hit the wrong words); `--force-index` overrides.
+
 ## [1.12.0] - 2026-11-11
 
 ### Added

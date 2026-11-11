@@ -25,6 +25,9 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `paths.footage_folders` | first edit that needs footage | "Which folder holds the material for this edit? (Tell me once - I'll remember it.)" |
 | `paths.projects` | the first time an unsaved project must be saved (library save, checkpoint, save-prep) | "Where do you keep your main projects? I'll suggest saving new ones there." |
 | `subtitles.enabled`, `engine`, `tools.whisper.model` | setup; the model again at the first transcription if still null - never chosen by Claude | see `setup.md` |
+| `premiere.project_folder` | the first time a Premiere project is created | "Where should I save new Premiere projects? (1) your project folder `<paths.projects>`, (2) next to the video (e.g. `<video folder>/<video> - Bileşenler/`), or (3) ask me each time" → `projects` / `next_to_video` / `ask` (asks for `paths.projects` too if it is null) |
+| `premiere.project_naming` | the first time a Premiere project is created | "How should Premiere projects be named? e.g. `{video}_{style}` → `IMG_3810_ecomelih.prproj`, `{date}_{video}`, or your own pattern" (fields: `{video}` `{style}` `{date}` `{part}` `{n}`) |
+| `premiere.sequence_naming` | the first time a sequence is created | "How should sequences be named? e.g. `{video}_{format}` → `IMG_3810_9x16`, or the same as the project" |
 | `download.mode` | default `premiere_fix`; changed when the user says "always ..." (`best_repair` for 4K + Premiere, `best` untouched, `ask` every time) | `downloads.md` |
 | `download.folder` | default `ask` - every download asks for the folder (offering `download.last_folder`); `fixed` + `last_folder` only when the user says to always use one | `downloads.md` |
 | `download.cookies` | default `ask` - only when a video needs sign-in | `downloads.md` -> Sign-in |

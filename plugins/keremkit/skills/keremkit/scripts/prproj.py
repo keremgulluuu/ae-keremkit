@@ -518,6 +518,19 @@ def summarize(info):
     return summ
 
 
+# Opacity Blend Mode numbers as Premiere stores them (= index in its alphabetical list, set_blend_mode).
+# Only numbers verified by readback are named; others print as "#N".
+BLEND = {2: "Color Dodge", 18: "Normal", 22: "Screen"}
+
+
+def blend_name(v):
+    try:
+        n = int(float(v))
+    except (TypeError, ValueError):
+        return str(v)
+    return f"{BLEND[n]} (#{n})" if n in BLEND else f"#{n} (unmapped)"
+
+
 def _key_span(keys, dur):
     """Key times as offsets from the clip's start or end, so a pattern ('first 0.833 s', 'last 0.833 s') shows."""
     ts = [k[0] for k in keys]
@@ -559,8 +572,10 @@ def inventory_lines(info, indent=""):
                     counts["effects"] += 1
                     keyed = [p for p in e["params"] if p.get("keyframes")]
                     text = next((p.get("text") for p in e["params"] if p.get("text")), None)
+                    blend = next((p.get("value") for p in e["params"] if p.get("name") == "Blend Mode"), None)
                     lines.append(f"{indent}      fx {e['name'] or e['match']} ({e['match']})  {len(e['params'])} params"
-                                 + (f", {len(keyed)} keyed" if keyed else ""))
+                                 + (f", {len(keyed)} keyed" if keyed else "")
+                                 + (f", blend {blend_name(blend)}" if blend is not None else ""))
                     if text and text.get("runs"):
                         r = text["runs"][0]
                         lines.append(f"{indent}         text \"{(r.get('text') or '').strip()[:30]}\" font {text.get('fonts')} "

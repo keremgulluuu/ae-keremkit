@@ -43,7 +43,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "1.12.0"
+KIT_VERSION = "2.0.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -83,6 +83,12 @@ DEFAULT_PREFS = {
     "tools": {
         "python": None, "ffmpeg": None, "ffprobe": None,
         "whisper": {"impl": None, "path": None, "model": None, "device": None, "language": None},
+        "premiere_mcp": {"command": None},   # list, e.g. ["premiere-pro-mcp"]; null = read from ~/.claude.json
+    },
+    "premiere": {
+        "project_folder": None,    # projects | next_to_video | ask  (projects = paths.projects); null = ask once
+        "project_naming": None,    # e.g. "{video}_{style}" or "{date}_{video}"; null = ask once
+        "sequence_naming": None,   # e.g. "{video}_{format}"; null = ask once
     },
     "subtitles": {"enabled": None, "engine": None, "build_mode": "data", "rules": {}, "font": None, "look": None,
                   "glossary": []},
@@ -218,7 +224,8 @@ def cmd_where(a):
 
 def cmd_init(a):
     h = os.path.abspath(a.path or a.home or home_dir())
-    for d in ("settings", "library/items", "styles/_archive", "learning", "tools", "extensions"):
+    for d in ("settings", "library/items", "library/mogrt", "styles/_archive", "learning", "learning/sessions",
+              "tools", "extensions", "assets"):
         os.makedirs(os.path.join(h, d), exist_ok=True)
     prefs_p = os.path.join(h, "settings", "preferences.json")
     wjson(prefs_p, deep_fill(rjson(prefs_p, {}), DEFAULT_PREFS))
@@ -256,9 +263,12 @@ def cmd_init(a):
 
 TOOLS = ("keremkit.py", "transcript.py", "cutlist.py", "subtitles.py", "editplan.py", "audio.py", "sfx.py", "qc.py",
          "techniques.py", "tokens.py", "presets.py", "videoref.py", "previews.py", "assets.py", "digest.py",
-         "prproj.py", "download.py", "techniques.json")
+         "prproj.py", "download.py", "prbatch.py", "techniques.json")
 
 LEARNING_FILES = {
+    "token-notes.md": "# Token notes\n\nWritten by the AI agent after every task, without asking and without holding back: what cost many "
+                      "tokens, what saved tokens, and what should change. The kit's maintainer reads this to make the "
+                      "next version cheaper. Format and examples: the skill's references/token-budget.md.\n\n",
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"
                       "Read before designing anything new. Style-specific rules belong in the style, not here.\n\n"
                       "## Typography\n\n## Color\n\n## Motion\n\n## Layout\n\n## Avoid\n",

@@ -8,7 +8,7 @@ Use the session's multiple-choice question tool when there is one; otherwise ask
 
 > Do you have a specific folder for your KeremKit settings? If so, where is it? (If not, `Documents/KeremKit` will be used.)
 
-Then run `keremkit.py init [PATH]`. It creates the folders, default `preferences.json` and `categories.json`, the learning files, copies the tools into `KeremKit/tools/`, and writes the pointer file `~/.keremkit.json` so later sessions find the folder. Re-running `init` only adds what is missing; it never overwrites user data.
+Then run `keremkit.py init [PATH]`. It creates the folders (settings, library incl. `library/mogrt/`, styles, `assets/` for downloaded elements, learning incl. `token-notes.md` and `sessions/`, tools, extensions), default `preferences.json` and `categories.json`, the learning files, copies the tools into `KeremKit/tools/`, and writes the pointer file `~/.keremkit.json` so later sessions find the folder. Re-running `init` only adds what is missing; it never overwrites user data.
 
 Set `language.library` now if the user writes in a language other than English (see SKILL.md -> Language).
 

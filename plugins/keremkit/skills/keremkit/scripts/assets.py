@@ -2,13 +2,16 @@
 """Free stock elements - search many sources at once, show them, download the picks with their licence.
 
   search TYPE "QUERY" [--source a,b] [--n 6] [--allow-attribution]
-         TYPE: photo video greenscreen overlay background sfx music icon logo texture hdri model font
+         TYPE: photo video greenscreen overlay background vector lottie sfx music icon logo texture hdri model font
          -> numbered compact lines (source, size/length, licence, title); results cached 24 h
   sheet  [-o OUT.png]                        the last search's thumbnails in one numbered image (for the user)
-  get    N [N ...] -o DIR                    download picks from the last search + a line each in DIR/SOURCES.md
+  get    N [N ...] [-o DIR]                 download picks from the last search (default KeremKit/assets/<type>/<source>/),
+                                             a line each in SOURCES.md and in KeremKit/assets/INDEX.tsv
   logo   NAME [NAME ...] -o DIR [--mono]     a brand logo straight away (colour SVG/PNG, else one-colour SVG)
   links  TYPE "QUERY"                        search pages of free sites without an API (templates, MOGRT, music...)
   import FILE [FILE ...] -o DIR --source S --license L [--url U]   record a file the user downloaded by hand
+  sources [TYPE] [--full]                   which free site is best for what, its licence, key and token cost (az/orta/cok)
+  have   "QUERY" [--type T]                 items already downloaded (KeremKit/assets/INDEX.tsv) - check before downloading
   keys   [set NAME=VALUE]                    which API keys are set (values never printed); pexels, pixabay, freesound,
                                              sketchfab (token, for model downloads), polypizza
   3D: model = Poly Haven, Sketchfab (CC0, incl. Smithsonian scans), NASA, ambientCG, Poly Pizza; texture / hdri also ambientCG
@@ -33,7 +36,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-UA = "KeremKit/1.11 (+https://github.com/keremgulluuu/ae-keremkit)"
+UA = "KeremKit/1.11 (+https://github.com/keremgulluuu/keremkit)"
 TTL = 24 * 3600
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
@@ -42,11 +45,13 @@ GH_DASH = "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main"
 GH_SIMPLE = "https://raw.githubusercontent.com/simple-icons/simple-icons/develop"
 
 TYPES = {
-    "photo": ["pexels", "pixabay", "openverse", "wikimedia"],
+    "photo": ["unsplash", "pexels", "pixabay", "stocksnap", "openverse", "wikimedia"],
     "video": ["pexels-video", "pixabay-video", "wikimedia-video"],
     "greenscreen": ["pexels-video", "pixabay-video"],
     "overlay": ["pexels-video", "pixabay-video"],
-    "background": ["pexels-video", "pixabay-video"],
+    "background": ["pexels-video", "pixabay-video", "unsplash"],
+    "vector": ["undraw", "wikimedia", "openverse"],
+    "lottie": ["lottiefiles"],
     "sfx": ["freesound", "openverse-audio"],
     "music": ["openverse-audio", "freesound"],
     "icon": ["iconify"],
@@ -58,7 +63,42 @@ TYPES = {
 }
 QUERY_ADD = {"greenscreen": "green screen", "overlay": "overlay", "background": "background"}
 KEYS = {"pexels": "PEXELS_API_KEY", "pixabay": "PIXABAY_API_KEY", "freesound": "FREESOUND_API_KEY",
-        "sketchfab": "SKETCHFAB_API_TOKEN", "polypizza": "POLYPIZZA_API_KEY"}
+        "sketchfab": "SKETCHFAB_API_TOKEN", "polypizza": "POLYPIZZA_API_KEY", "unsplash": "UNSPLASH_ACCESS_KEY"}
+
+# What each site is best at, everything it offers, licence, key, and the usual token cost of using it through the
+# kit (az = a search or a download, ~1-2k tokens; orta = several searches/sheets or a manual import; cok = many items,
+# browsing by hand, or previews that must be looked at). Printed by `assets.py sources [TYPE]`.
+SITES = [
+    # name, types, best at, everything it offers, licence, key, via, token cost
+    ("Unsplash", "photo background texture", "the most polished free photos: textures, abstract backgrounds, product-like shots",
+     "photos in every topic, full resolution (often 5000+ px), landscape/portrait filter", "Unsplash License (free, commercial, no credit for the user; the kit still records the photographer)", "free Access Key", "api", "az"),
+    ("Pexels", "photo video background overlay greenscreen", "stock video (4K) and natural photos", "photos, videos up to 4K, green screen, overlays", "Pexels License (free, no credit)", "free key", "api", "az"),
+    ("Pixabay", "photo video vector music sfx", "broad library incl. illustrations, music and sound effects", "photos, vectors (preview via API), illustrations, videos, music, SFX (site)", "Pixabay Content License (free, no credit)", "free key", "api + links", "az"),
+    ("StockSnap", "photo texture background", "CC0 photos with many textures and backgrounds", "photos; API gives 960 px previews, full size on the photo page", "CC0", "none", "api (preview) + page", "orta"),
+    ("Openverse", "photo vector sfx music", "one search across many CC collections", "images, SVG, audio from museums, Flickr, Wikimedia...", "CC0 / PD by default (CC BY only when allowed)", "none", "api", "az"),
+    ("Wikimedia Commons", "photo vector video", "public-domain photos, maps, diagrams, SVG drawings", "images, SVG, video, audio", "PD / CC0 by default", "none", "api", "az"),
+    ("unDraw", "vector", "clean flat SVG illustrations (people, tech, business), recolourable", "~1500 illustrations as SVG", "unDraw License (free, commercial, no credit)", "none", "api", "az"),
+    ("Iconify", "icon", "200k+ icons from open sets in one search", "SVG icons (Material, Tabler, Lucide, Solar...)", "per set: MIT/Apache/CC BY - free sets by default", "none", "api", "az"),
+    ("Dashboard Icons / Simple Icons", "logo", "brand logos in colour or one colour", "SVG/PNG logos of apps and brands", "trademarks of their owners; files free", "none", "api", "az"),
+    ("Poly Haven", "texture hdri model", "the best free PBR textures, HDRIs and models", "textures (2k-8k maps), HDRIs, glTF models", "CC0", "none", "api", "az"),
+    ("ambientCG", "texture hdri model", "huge CC0 PBR material library", "materials (zip with colour/normal/roughness/displacement), HDRIs, some models", "CC0", "none", "api", "az"),
+    ("Sketchfab", "model", "museum scans (Smithsonian...) and detailed models", "CC0 and CC BY models, glb/gltf", "CC0 by default", "token for downloads", "api", "orta"),
+    ("NASA 3D Resources", "model", "spacecraft, planets, asteroids", "glb/stl models, textures", "no copyright; no endorsement, no NASA logo use", "none", "api", "az"),
+    ("Poly Pizza", "model", "low-poly game-style models (Quaternius, Kenney)", "glb models", "CC0 (CC BY only when allowed)", "free key", "api", "az"),
+    ("LottieFiles", "lottie", "ready UI animations: confetti, loaders, icons, arrows", "Lottie JSON/.lottie, GIF previews", "Lottie Simple License (free, commercial)", "none", "api", "az"),
+    ("Freesound", "sfx music", "real recorded sound effects", "SFX, ambiences, loops (CC0 filter)", "CC0 by default", "free key", "api", "az"),
+    ("Fontsource", "font", "every open-licence web font in TTF", "fonts in all weights", "OFL / Apache", "none", "api", "az"),
+    ("Public Domain Vectors", "ai vector", "real .ai / .eps / .svg vector files", "vector clipart, icons, backgrounds", "public domain", "none", "links + import", "orta"),
+    ("Vector4Free", "ai vector", ".ai / .eps vector packs", "vectors in AI, EPS, PDF, SVG", "free, check each item (some need credit)", "none", "links + import", "orta"),
+    ("Getillustrations (free packs)", "ai vector", "polished illustration packs with .ai sources", "SVG, PNG, AI per pack", "free packs: check the licence (often personal use)", "free account", "links + import", "orta"),
+    ("Vecteezy / Freepik (free items)", "ai vector photo", "biggest vector and PSD libraries", "AI, EPS, SVG, PSD, photos", "free items require a credit - only with allow_attribution", "account", "links + import", "cok"),
+    ("Kaboompics", "photo background", "styled, colour-matched lifestyle and product photos", "photos with colour palettes", "Kaboompics License (free, no credit)", "none", "links + import", "orta"),
+    ("Lost and Taken", "texture", "grunge, paper, film and light textures for compositing", "texture packs (zip)", "free for commercial use", "none", "links + import", "orta"),
+    ("Gradienta", "background", "soft CSS/JPG gradient backgrounds", "gradient images and CSS", "free", "none", "links + import", "az"),
+    ("Magdeleine / Burst", "photo background", "hand-picked CC0 photos (Magdeleine), e-commerce photos (Burst)", "photos", "CC0 / Burst licence (free)", "none", "links + import", "orta"),
+    ("Mixkit", "template video music sfx", "free AE/Premiere templates and MOGRTs", "templates, MOGRT, video, music, SFX", "Mixkit Free License (check each item)", "none", "links + import", "orta"),
+    ("Kenney / Quaternius", "game model", "CC0 game assets, UI kits, low-poly 3D packs", "2D/3D packs", "CC0", "none", "links + import", "orta"),
+]
 
 LINKS = {
     "template": [("Mixkit After Effects templates (Mixkit Free License - check each item)", "https://mixkit.co/free-after-effects-templates/"),
@@ -86,6 +126,24 @@ LINKS = {
 LINKS["greenscreen"] = LINKS["overlay"] = LINKS["background"] = LINKS["video"]
 LINKS["aep"] = LINKS["project"] = LINKS["template"]
 LINKS["prfpset"] = LINKS["ffx"] = LINKS["preset"]
+LINKS["ai"] = [("Public Domain Vectors - .ai/.eps/.svg, public domain", "https://publicdomainvectors.org/en/search/{q}"),
+               ("Vector4Free - .ai/.eps packs (check each item's licence)", "https://www.vector4free.com/?s={q}"),
+               ("Getillustrations free packs - .ai sources (often personal use only)", "https://getillustrations.com/free"),
+               ("Vecteezy free vectors - credit required", "https://www.vecteezy.com/free-vector/{q}"),
+               ("Freepik free vectors - credit required", "https://www.freepik.com/search?format=search&type=vector&query={q}"),
+               ("SVG Repo - free SVG icons/vectors", "https://www.svgrepo.com/vectors/{q}/")]
+LINKS["eps"] = LINKS["vector"] = LINKS["ai"]
+LINKS["texture"] = [("Lost and Taken - grunge, paper, film, light textures", "https://lostandtaken.com/?s={q}"),
+                    ("StockSnap (full size) - CC0", "https://stocksnap.io/search/{q}"),
+                    ("Unsplash (site)", "https://unsplash.com/s/photos/{q}-texture")]
+LINKS["photo"] = [("Kaboompics - styled photos with palettes", "https://kaboompics.com/gallery?search={q}"),
+                  ("Magdeleine - CC0 hand-picked", "https://magdeleine.co/?s={q}"),
+                  ("Burst (Shopify) - free product/e-commerce photos", "https://burst.shopify.com/photos/search?q={q}"),
+                  ("StockSnap - CC0", "https://stocksnap.io/search/{q}")]
+LINKS["background"] = LINKS["video"] + [("Gradienta - gradient backgrounds", "https://gradienta.io/"),
+                                        ("Unsplash backgrounds", "https://unsplash.com/s/photos/{q}-background")]
+LINKS["lottie"] = [("LottieFiles free animations", "https://lottiefiles.com/search?q={q}&category=animations"),
+                   ("AE needs a Lottie importer plugin; Premiere cannot place Lottie - render it to video in AE", "")]
 LINKS["3d"] = LINKS["model"]
 
 
@@ -122,8 +180,8 @@ class Skip(Exception):
     pass
 
 
-def fetch(url, headers=None, timeout=20, raw=False):
-    req = urllib.request.Request(url, headers=dict({"User-Agent": UA}, **(headers or {})))
+def fetch(url, headers=None, timeout=20, raw=False, body=None):
+    req = urllib.request.Request(url, headers=dict({"User-Agent": UA}, **(headers or {})), data=body)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = r.read()
@@ -221,6 +279,8 @@ def p_openverse(home, q, n, kind, allow):
     audio = kind in ("sfx", "music")
     lic = "cc0,pdm" + (",by,by-sa" if allow else "")
     params = {"q": q, "page_size": n, "license": lic}
+    if kind == "vector":
+        params["extension"] = "svg"
     if audio:
         params["category"] = "music" if kind == "music" else "sound_effect"
     url = f"https://api.openverse.org/v1/{'audio' if audio else 'images'}/?"
@@ -237,14 +297,14 @@ def p_openverse(home, q, n, kind, allow):
         credit = code not in ("cc0", "pdm")
         lic = "CC0" if code == "cc0" else ("Public Domain" if code == "pdm" else f"CC {code.upper()} {r.get('license_version', '')}".strip())
         dur = (r.get("duration") or 0) / 1000 if audio and r.get("duration") else None
-        out.append(item("openverse", "audio" if audio else "photo", r.get("title", ""), r.get("url", ""), lic,
+        out.append(item("openverse", "audio" if audio else ("vector" if kind == "vector" else "photo"), r.get("title", ""), r.get("url", ""), lic,
                         r.get("foreign_landing_url", ""), r.get("creator", ""), r.get("width"), r.get("height"), dur,
                         r.get("thumbnail", ""), (r.get("filetype") or "").lower(), credit))
     return out
 
 
 def p_wikimedia(home, q, n, kind, allow):
-    ft = "video" if kind == "video" else ("audio" if kind in ("sfx", "music") else "bitmap")
+    ft = {"video": "video", "sfx": "audio", "music": "audio", "vector": "drawing"}.get(kind, "bitmap")
     params = {"action": "query", "format": "json", "generator": "search", "gsrnamespace": 6, "gsrlimit": n * 3,
               "gsrsearch": f"{q} filetype:{ft}", "prop": "imageinfo", "iiprop": "url|size|mime|extmetadata",
               "iiurlwidth": 320}
@@ -260,7 +320,9 @@ def p_wikimedia(home, q, n, kind, allow):
             continue
         artist = re.sub("<[^>]+>", "", (md.get("Artist") or {}).get("value", ""))[:40]
         title = pg.get("title", "").replace("File:", "")
-        out.append(item("wikimedia", kind if kind == "video" else "photo", os.path.splitext(title)[0], ii.get("url", ""),
+        if kind == "vector" and not title.lower().endswith(".svg"):
+            continue
+        out.append(item("wikimedia", kind if kind in ("video", "vector") else "photo", os.path.splitext(title)[0], ii.get("url", ""),
                         short or code, ii.get("descriptionurl", ""), artist, ii.get("width"), ii.get("height"),
                         ii.get("duration"), ii.get("thumburl", ""), os.path.splitext(title)[1].lstrip(".").lower(), not free))
         if len(out) >= n:
@@ -365,6 +427,73 @@ def p_polyhaven(home, q, n, kind, allow):
                             ext={"textures": "jpg", "hdris": "hdr", "models": "gltf"}[t],
                             extra={"downloads": a.get("download_count", 0)}))
     return sorted(out, key=lambda r: -r["extra"]["downloads"])[:n]
+
+
+def p_undraw(home, q, n, kind, allow):
+    """unDraw: flat SVG illustrations (people, tech, business). unDraw licence: free, commercial use, no credit;
+    the colour can be changed in the SVG. No key."""
+    data = fetch("https://undraw.co/api/search?" + urllib.parse.urlencode({"q": q}))
+    out = []
+    for r in data.get("results", [])[:n]:
+        slug_ = r.get("newSlug") or r.get("_id", "")
+        out.append(item("undraw", "vector", r.get("title", ""), r.get("media", ""), "unDraw License (free, no credit)",
+                        f"https://undraw.co/illustration/{slug_}", "Katerina Limpitsouni", thumb=r.get("media", ""),
+                        ext="svg"))
+    return out
+
+
+def p_unsplash(home, q, n, kind, allow):
+    """Unsplash: high-end photos, textures, backgrounds. Unsplash License (free, commercial, no credit needed for the
+    user), but the API rules ask apps to credit the photographer and to ping the download endpoint - done by get."""
+    k = keys(home).get("unsplash")
+    if not k:
+        raise Skip("needs a free Access Key (unsplash.com/developers): assets.py keys set unsplash=...")
+    params = {"query": q, "per_page": min(30, n), "content_filter": "high"}
+    if kind == "background":
+        params["orientation"] = "landscape"
+    data = fetch("https://api.unsplash.com/search/photos?" + urllib.parse.urlencode(params),
+                 headers={"Authorization": f"Client-ID {k}", "Accept-Version": "v1"})
+    out = []
+    for r in data.get("results", []):
+        user = r.get("user") or {}
+        out.append(item("unsplash", "photo", r.get("description") or r.get("alt_description") or r.get("id", ""),
+                        (r.get("urls") or {}).get("full", ""), "Unsplash License", (r.get("links") or {}).get("html", ""),
+                        user.get("name", ""), r.get("width"), r.get("height"), thumb=(r.get("urls") or {}).get("small", ""),
+                        ext="jpg", extra={"ping": (r.get("links") or {}).get("download_location", ""),
+                                          "credit_line": f"Photo by {user.get('name', '')} on Unsplash"}))
+    return out
+
+
+def p_stocksnap(home, q, n, kind, allow):
+    """StockSnap: CC0 photos, many textures/backgrounds. The API gives 960 px previews only; the full size is
+    downloaded on the photo page (then assets.py import)."""
+    data = fetch("https://stocksnap.io/api/search-photos/" + urllib.parse.quote(q) + "/relevance/desc/1",
+                 headers={"User-Agent": "Mozilla/5.0 " + UA})
+    out = []
+    for r in data.get("results", [])[:n]:
+        iid = r.get("img_id", "")
+        kws = [k for k in (r.get("keywords") or []) if k][:3]
+        out.append(item("stocksnap", "photo", " ".join(kws) or iid, f"https://cdn.stocksnap.io/img-thumbs/960w/{iid}.jpg",
+                        "CC0", f"https://stocksnap.io/photo/{iid}", "", r.get("img_width"), r.get("img_height"),
+                        thumb=f"https://cdn.stocksnap.io/img-thumbs/280h/{iid}.jpg", ext="jpg",
+                        extra={"preview_only": True}))
+    return out
+
+
+def p_lottiefiles(home, q, n, kind, allow):
+    """LottieFiles: free Lottie animations (icons, loaders, confetti, UI). Lottie Simple License (free, commercial,
+    no credit). After Effects needs a Lottie importer plugin; .json/.lottie also play in web/apps. No key."""
+    gql = ('{ searchPublicAnimations(query: %s, first: %d) { edges { node { id name jsonUrl lottieUrl imageUrl url '
+           'createdBy { username } } } } }' % (json.dumps(q), min(20, n)))
+    data = fetch("https://graphql.lottiefiles.com/2022-08", headers={"Content-Type": "application/json"},
+                 body=json.dumps({"query": gql}).encode("utf-8"))
+    out = []
+    for e in (((data.get("data") or {}).get("searchPublicAnimations") or {}).get("edges") or []):
+        r = e.get("node") or {}
+        out.append(item("lottiefiles", "lottie", r.get("name", ""), r.get("jsonUrl", ""), "Lottie Simple License",
+                        r.get("url", ""), ((r.get("createdBy") or {}).get("username") or "").strip("/"),
+                        thumb=r.get("imageUrl", ""), ext="json"))
+    return out
 
 
 ACG_TYPE = {"texture": "Material", "hdri": "HDRI", "model": "3DModel"}
@@ -487,6 +616,10 @@ PROVIDERS = {
     "simpleicons": p_simpleicons,
     "polyhaven": p_polyhaven,
     "ambientcg": p_ambientcg,
+    "undraw": p_undraw,
+    "unsplash": p_unsplash,
+    "stocksnap": p_stocksnap,
+    "lottiefiles": p_lottiefiles,
     "sketchfab": p_sketchfab,
     "nasa": p_nasa,
     "polypizza": p_polypizza,
@@ -512,6 +645,8 @@ def cmd_search(a):
     if kind in QUERY_ADD and QUERY_ADD[kind] not in q.lower():
         q = f"{q} {QUERY_ADD[kind]}".strip()
     srcs = a.source.split(",") if a.source else TYPES[kind]
+    for row in index_find(home, a.query, kind, 3):   # reuse before downloading again
+        print(f"HAVE\t{row[2]}\t{row[3]}\t{os.path.join(home, row[4])}\t{row[5]}")
 
     def run(src):
         try:
@@ -605,6 +740,67 @@ def cmd_sheet(a):
     print(f"OK\t{out}\t{len(tiles)} item(s)" + (f"\tno thumbnail: {', '.join(skipped)}" if skipped else ""))
 
 
+def assets_root(home):
+    return os.path.join(home, "assets")
+
+
+def default_dest(home, kind, src):
+    """Downloads land in KeremKit/assets/<type>/<source>/ so they are found again (videos from download.py excepted)."""
+    return os.path.join(assets_root(home), slug(kind or "other", 20), slug(src or "manual", 20))
+
+
+def index_add(home, paths, r, kind, query=""):
+    p = os.path.join(assets_root(home), "INDEX.tsv")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    new = not os.path.isfile(p)
+    with open(p, "a", encoding="utf-8", newline="\n") as f:
+        if new:
+            f.write("date\ttype\tsource\ttitle\tfile\tlicence\tpage\tquery\n")
+        rel = os.path.relpath(paths[0], home).replace("\\", "/") if paths else ""
+        clean = [str(x).replace("\t", " ").replace("\n", " ") for x in
+                 (date.today().isoformat(), kind, r.get("src", ""), r.get("title", ""), rel, r.get("license", ""),
+                  r.get("page", ""), query)]
+        f.write("\t".join(clean) + "\n")
+
+
+def index_find(home, q, kind=None, n=5):
+    p = os.path.join(assets_root(home), "INDEX.tsv")
+    if not os.path.isfile(p) or not q:
+        return []
+    out = []
+    with open(p, encoding="utf-8") as f:
+        next(f, None)
+        for line in f:
+            row = line.rstrip("\n").split("\t")
+            if len(row) < 8 or (kind and row[1] != kind):
+                continue
+            if hit(" ".join([row[3], row[7], row[4]]), q) and os.path.exists(os.path.join(home, row[4])):
+                out.append(row)
+    return out[-n:]
+
+
+def cmd_have(a):
+    home = home_dir(a.home)
+    rows = index_find(home, a.query, a.type, a.n)
+    for r in rows:
+        print(f"HAVE\t{r[1]}\t{r[2]}\t{r[3]}\t{os.path.join(home, r[4])}\t{r[5]}")
+    print(f"OK\t{len(rows)} already downloaded" + ("" if rows else " - search to find new ones"))
+
+
+def cmd_sources(a):
+    want = (a.type or "").lower()
+    rows = [s for s in SITES if not want or want in s[1].split()]
+    print("site\tbest at\tlicence\tkey\tvia\ttoken cost")
+    for name, types, best, _all, lic, key, via, cost in rows:
+        print(f"{name}\t{best}\t{lic}\t{key}\t{via}\t{cost}")
+    if a.full:
+        print("--- everything each site offers")
+        for name, types, best, everything, *_ in rows:
+            print(f"{name}\t[{types}]\t{everything}")
+    print("COST az ~1-2k tokens (one search/download) | orta ~3-8k (sheets, several searches, manual import) | "
+          "cok 10k+ (many items, browsing by hand)")
+
+
 def sources_line(dest, fname, r):
     p = os.path.join(dest, "SOURCES.md")
     new = not os.path.isfile(p)
@@ -638,6 +834,18 @@ def download(home, r, dest, fmt_=None):
             files.append((g["url"], base + ".gltf"))
             for rel, v in (g.get("include") or {}).items():
                 files.append((v["url"], rel))
+    elif r["src"] == "stocksnap":
+        raise Skip(f"StockSnap's API only gives 960 px previews - download the full size on {r.get('page')} "
+                   "and run assets.py import (CC0)")
+    elif r["src"] == "unsplash":
+        ping = (r.get("extra") or {}).get("ping")
+        k = keys(home).get("unsplash")
+        if ping and k:   # Unsplash API rule: tell Unsplash when a photo is actually downloaded
+            try:
+                fetch(ping, headers={"Authorization": f"Client-ID {k}"})
+            except Skip:
+                pass
+        files.append((r["url"], base + ".jpg"))
     elif r["src"] == "sketchfab":
         tok = keys(home).get("sketchfab")
         if not tok:
@@ -700,14 +908,17 @@ def cmd_get(a):
             print(f"ERROR\t{n}\tno such result")
             continue
         r = data["rows"][n - 1]
+        kind = r.get("kind_req") or data.get("type") or r.get("kind")
+        dest = a.out or default_dest(home, kind, r["src"])
         try:
-            saved = download(home, r, a.out, a.format)
+            saved = download(home, r, dest, a.format)
+            index_add(home, saved, r, kind, data.get("query", ""))
         except Skip as e:
             print(f"ERROR\t{n}\t{r['src']}: {e}")
             continue
-        size = sum(os.path.getsize(p) for p in saved)
+        size = sum(os.path.getsize(p) for p in saved if os.path.isfile(p))
         note = "  CREDIT REQUIRED - see SOURCES.md" if r.get("credit") else ""
-        print(f"OK\t{n}\t{os.path.basename(saved[0])}" + (f" (+{len(saved) - 1})" if len(saved) > 1 else "") +
+        print(f"OK\t{n}\t{saved[0]}" + (f" (+{len(saved) - 1})" if len(saved) > 1 else "") +
               f"\t{size // 1024} KB\t{r['license']}{note}")
     if data["type"] == "font":
         print("NOTE\tfonts must be installed (double-click the .ttf > Install) before After Effects can use them")
@@ -734,7 +945,8 @@ def cmd_logo(a):
             print(f"NOT_FOUND\t{name}\ttry: assets.py search logo \"{name}\"")
             continue
         try:
-            saved = download(home, r, a.out, "png" if a.png else None)
+            saved = download(home, r, a.out or default_dest(home, "logo", r["src"]), "png" if a.png else None)
+            index_add(home, saved, r, "logo", name)
         except Skip as e:
             print(f"ERROR\t{name}\t{e}")
             continue
@@ -753,6 +965,8 @@ def cmd_links(a):
 
 
 def cmd_import(a):
+    home = home_dir(a.home)
+    a.out = a.out or default_dest(home, a.type, a.source)
     os.makedirs(a.out, exist_ok=True)
     for f in a.files:
         if not os.path.isfile(f):
@@ -763,6 +977,8 @@ def cmd_import(a):
             shutil.copy2(f, dst)
         sources_line(a.out, os.path.basename(f), {"title": os.path.splitext(os.path.basename(f))[0], "page": a.url or a.source,
                                                   "src": a.source, "author": "", "license": a.license, "credit": a.credit})
+        index_add(home, [dst], {"src": a.source, "title": os.path.splitext(os.path.basename(f))[0],
+                                "license": a.license, "page": a.url or ""}, a.type, "")
         print(f"OK\t{dst}\t{a.license}")
 
 
@@ -807,11 +1023,11 @@ def main(argv=None):
     sh.add_argument("-o", "--out")
     g = sp.add_parser("get")
     g.add_argument("numbers", type=int, nargs="+")
-    g.add_argument("-o", "--out", required=True)
+    g.add_argument("-o", "--out", help="default: KeremKit/assets/<type>/<source>/")
     g.add_argument("--format", choices=["svg", "png"])
     lg = sp.add_parser("logo")
     lg.add_argument("names", nargs="+")
-    lg.add_argument("-o", "--out", required=True)
+    lg.add_argument("-o", "--out", help="default: KeremKit/assets/logo/<source>/")
     lg.add_argument("--mono", action="store_true", help="one-colour Simple Icons version")
     lg.add_argument("--png", action="store_true", help="PNG instead of SVG where available")
     li = sp.add_parser("links")
@@ -819,17 +1035,25 @@ def main(argv=None):
     li.add_argument("query", nargs="?", default="")
     im = sp.add_parser("import")
     im.add_argument("files", nargs="+")
-    im.add_argument("-o", "--out", required=True)
+    im.add_argument("-o", "--out", help="default: KeremKit/assets/<type>/<source>/")
+    im.add_argument("--type", default="other", help="asset type for the default folder and the index (photo, vector, ai, texture...)")
     im.add_argument("--source", required=True)
     im.add_argument("--license", required=True)
     im.add_argument("--url")
     im.add_argument("--credit", action="store_true", help="the licence requires a credit")
+    so = sp.add_parser("sources")
+    so.add_argument("type", nargs="?", help="only sites for this type (photo, vector, ai, texture, model, lottie...)")
+    so.add_argument("--full", action="store_true", help="also everything each site offers")
+    hv = sp.add_parser("have")
+    hv.add_argument("query")
+    hv.add_argument("--type")
+    hv.add_argument("--n", type=int, default=10)
     k = sp.add_parser("keys")
     k.add_argument("action", nargs="?", choices=["set"])
     k.add_argument("pairs", nargs="*")
     a = ap.parse_args(argv)
     {"search": cmd_search, "sheet": cmd_sheet, "get": cmd_get, "logo": cmd_logo, "links": cmd_links,
-     "import": cmd_import, "keys": cmd_keys}[a.cmd](a)
+     "import": cmd_import, "keys": cmd_keys, "sources": cmd_sources, "have": cmd_have}[a.cmd](a)
 
 
 if __name__ == "__main__":

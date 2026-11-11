@@ -7,7 +7,7 @@ import sys
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPTS = os.path.join(ROOT, "plugins", "ae-keremkit", "skills", "ae-keremkit", "scripts")
+SCRIPTS = os.path.join(ROOT, "plugins", "keremkit", "skills", "keremkit", "scripts")
 
 SENTENCE = ("Hello everyone today I want to show you something really important "
             "let's look at the screen here we have 25,000 people and that is a great result. "

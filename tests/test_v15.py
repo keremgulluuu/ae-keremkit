@@ -122,9 +122,9 @@ def test_safe_copy_and_stat(tmp_path):
 
 
 def test_version_matches_plugin():
-    v = json.loads((ROOT / "plugins" / "ae-keremkit" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+    v = json.loads((ROOT / "plugins" / "keremkit" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
     assert run("keremkit.py", "version").stdout.strip() == f"KeremKit {v}"
-    skill = (ROOT / "plugins" / "ae-keremkit" / "skills" / "ae-keremkit" / "SKILL.md").read_text(encoding="utf-8")
+    skill = (ROOT / "plugins" / "keremkit" / "skills" / "keremkit" / "SKILL.md").read_text(encoding="utf-8")
     assert f"KeremKit {v}" in skill
 
 
@@ -242,7 +242,7 @@ def test_add_many(tmp_path):
 
 
 def test_skill_forbids_self_update_and_doctor_flags_user_tools(tmp_path):
-    skill = (ROOT / "plugins" / "ae-keremkit" / "skills" / "ae-keremkit" / "SKILL.md").read_text(encoding="utf-8")
+    skill = (ROOT / "plugins" / "keremkit" / "skills" / "keremkit" / "SKILL.md").read_text(encoding="utf-8")
     assert "The skill is read-only" in skill and "only when the user asks" in skill
     env = dict(os.environ, HOME=str(tmp_path), USERPROFILE=str(tmp_path))
     kk = tmp_path / "KK"

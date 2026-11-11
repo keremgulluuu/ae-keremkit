@@ -22,6 +22,9 @@ Global limits (preferences): `level_db` default level, `min_gap_s` (no two SFX c
 
 ## Placing SFX
 
+Risers, whooshes and swells that lead into a cut: measure where the file is loudest (RMS peak, e.g. `audio.py` / ffmpeg astats per 10 ms) and put **that peak on the cut**, not the file's start. Example: Riser2.wav peaks at 5.475 s, so it starts 5.475 s before the cut.
+
+
 1. Collect the events from the timeline plan / what was placed (transition times, UI in-points, highlight times from `subs.json`).
 2. Apply the rules, then the limits (drop the weakest when too dense; prefer structural events - transitions, interstitials - over decorative ones).
 3. Find files: list the SFX folder once per session (names only) and match by stem. No folder, or a sound is missing: offer to synthesise basic ones - `sfx.py make whoosh impact pop tick click glitch flash riser typing -o <project>/_keremkit/sfx [--variants 3]` (licence-free, every file peaks at -3 dBFS, so set levels in AE). Never invent a file that does not exist.

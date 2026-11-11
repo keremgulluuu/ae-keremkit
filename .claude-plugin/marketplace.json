@@ -6,8 +6,8 @@
   },
   "plugins": [
     {
-      "name": "ae-keremkit",
-      "source": "./plugins/ae-keremkit",
+      "name": "keremkit",
+      "source": "./plugins/keremkit",
       "description": "Edit styles, tight cutting, Whisper subtitles, sound-effect rules and a design library for After Effects."
     }
   ]

@@ -83,3 +83,7 @@ Presets saved with KeremKit: `<presets.root>/<Folder>/KK <Category word> <Name> 
 ## Checkpoints
 
 `<Project>_v001.aep`, `_v002`... next to the project; if the name already ends in `_vNNN`, increment it. Claude never deletes checkpoints.
+
+## Footage scale
+
+Scale a camera or footage clip to the frame as **sequence/comp width ÷ source width × 100**, read from ffprobe for every source. Never copy a factor from another video: a 2160x3840 iPhone clip in a 1080x1920 sequence is 50 %, a 720x1280 clip is 150 %.

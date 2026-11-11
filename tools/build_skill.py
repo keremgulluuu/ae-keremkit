@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Package the skill as a zip for claude.ai (Customize > Skills > + > Upload a skill).
 
-    python tools/build_skill.py            -> dist/ae-keremkit-<version>.zip
+    python tools/build_skill.py            -> dist/keremkit-<version>.zip
 """
 import json
 import os
@@ -10,8 +10,8 @@ import sys
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLUGIN = os.path.join(ROOT, "plugins", "ae-keremkit")
-SKILL = os.path.join(PLUGIN, "skills", "ae-keremkit")
+PLUGIN = os.path.join(ROOT, "plugins", "keremkit")
+SKILL = os.path.join(PLUGIN, "skills", "keremkit")
 SKIP_DIRS = {"__pycache__", ".pytest_cache"}
 SKIP_FILES = {".DS_Store", "Thumbs.db"}
 
@@ -37,7 +37,7 @@ def main():
     with open(os.path.join(PLUGIN, ".claude-plugin", "plugin.json"), encoding="utf-8") as f:
         version = json.load(f)["version"]
     os.makedirs(os.path.join(ROOT, "dist"), exist_ok=True)
-    out = os.path.join(ROOT, "dist", f"ae-keremkit-{version}.zip")
+    out = os.path.join(ROOT, "dist", f"keremkit-{version}.zip")
     count = 0
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for base, dirs, files in os.walk(SKILL):
@@ -47,7 +47,7 @@ def main():
                     continue
                 full = os.path.join(base, name)
                 rel = os.path.relpath(full, SKILL).replace(os.sep, "/")
-                z.write(full, f"ae-keremkit/{rel}")
+                z.write(full, f"keremkit/{rel}")
                 count += 1
     print(f"{out} ({count} files)")
 

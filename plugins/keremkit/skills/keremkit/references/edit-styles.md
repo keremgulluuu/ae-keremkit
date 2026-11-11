@@ -81,6 +81,7 @@ A style learned from a project must hold every element of the edit. Missing one 
 
 - Before building, list every element of the style (intro parts, sections, product rules, animations, transitions, SFX, music, captions) and tick each one off when it is built.
 - Build animations and effects as **real, editable keyframes and effects** in the target app (Premiere: `apply_effect` + `add_keyframe`, or copy from a reference clip; AE: properties and keys). Never bake a style's movement into a rendered video unless the user asks: it cannot be adjusted and its easing drifts from the original.
+- Per video, not per style: put texts and SFX that belong to spoken words on those words' start times in the corrected transcript (fixed offsets only as fallback), compute scales from each source (`standards.md` -> Footage scale), and end section clips exactly at the next cut so animations never overlap.
 - At the end, read every element back (`get_keyframes`, `get_effect_properties`, `comp.info`) and report anything that could not be built, saying why.
 
 Names: English `name` (e.g. "Kerem Style"), local names in `names` (e.g. `{"tr": "Kerem Stili"}`), `aliases` for how the user refers to it; slug = ASCII of the name.
