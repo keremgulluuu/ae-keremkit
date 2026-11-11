@@ -70,7 +70,7 @@ def load_words(path):
     words = []
     for w in raw:
         text = (w.get("word") or w.get("text") or "").strip()
-        if not text:
+        if not text or (text.startswith("[") and text.endswith("]")):   # verbatim sound tags are not speech
             continue
         words.append([w.get("start"), w.get("end"), text])
     # interpolate missing times (whisperx leaves numbers untimed)

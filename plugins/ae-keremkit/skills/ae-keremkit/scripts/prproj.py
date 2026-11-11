@@ -7,6 +7,9 @@ Commands
             every track item (time, source, in/out, clip gain, disabled flag, effects with values and
             keyframes, decoded text style) + the nested sequences it uses; prints a short summary.
             Without --seq the sequence with the most clips is used.
+  inventory analysis.json                       one line per track, clip, effect, keyframed parameter (as start+/end-
+            offsets), text style and transition, nested sequences included, with totals - the checklist a style
+            is built from: every line must end up in the style or be written off with a reason.
 
 ALWAYS run it on a COPY (keremkit.py safe-copy), never on the user's project.
 
@@ -515,6 +518,83 @@ def summarize(info):
     return summ
 
 
+def _key_span(keys, dur):
+    """Key times as offsets from the clip's start or end, so a pattern ('first 0.833 s', 'last 0.833 s') shows."""
+    ts = [k[0] for k in keys]
+    a, b = min(ts), max(ts)
+    if dur and a >= dur / 2:
+        span = f"end{a - dur:+.3f}..end{b - dur:+.3f}"
+    else:
+        span = f"start+{a:.3f}..+{b:.3f}"
+    out = dur is not None and (b > dur + 0.05 or a < -0.05)
+    return span, out
+
+
+def inventory_lines(info, indent=""):
+    lines, counts = [], {"items": 0, "effects": 0, "keyed": 0, "outside": 0, "transitions": 0, "disabled": 0}
+    for kind in ("video", "audio"):
+        for tr in info[kind]:
+            tag = f"{'V' if kind == 'video' else 'A'}{tr['index']}"
+            if not tr["items"] and not tr["transitions"]:
+                continue
+            extra = " MUTED" if tr.get("mute") else ""
+            lines.append(f"{indent}{tag}{extra}  {len(tr['items'])} item(s), {len(tr['transitions'])} transition(s)")
+            for fx in tr.get("track_fx") or []:
+                lines.append(f"{indent}  track effect: {fx['match']}")
+            for it in tr["items"]:
+                counts["items"] += 1
+                flags = []
+                if it.get("disabled"):
+                    flags.append("DISABLED")
+                    counts["disabled"] += 1
+                if it.get("speed") not in (None, 1, 1.0):
+                    flags.append(f"speed {it['speed']}")
+                if it.get("reversed"):
+                    flags.append("reversed")
+                if it.get("clip_gain_db") not in (None, 0, 0.0):
+                    flags.append(f"gain {it['clip_gain_db']} dB")
+                lines.append(f"{indent}  {it['start']:7.3f}-{it['end']:7.3f}  {it['name']}  [{it['kind']}]"
+                             + (f"  in {it['in']}" if it.get("in") else "") + ("  " + ", ".join(flags) if flags else ""))
+                for e in it["effects"]:
+                    counts["effects"] += 1
+                    keyed = [p for p in e["params"] if p.get("keyframes")]
+                    text = next((p.get("text") for p in e["params"] if p.get("text")), None)
+                    lines.append(f"{indent}      fx {e['name'] or e['match']} ({e['match']})  {len(e['params'])} params"
+                                 + (f", {len(keyed)} keyed" if keyed else ""))
+                    if text and text.get("runs"):
+                        r = text["runs"][0]
+                        lines.append(f"{indent}         text \"{(r.get('text') or '').strip()[:30]}\" font {text.get('fonts')} "
+                                     f"size {r.get('size')} fill {r.get('fill_rgb')} stroke {r.get('stroke_width')}")
+                    for p in keyed:
+                        counts["keyed"] += 1
+                        span, out = _key_span(p["keyframes"], it.get("dur"))
+                        if out:
+                            counts["outside"] += 1
+                        k0, k1 = p["keyframes"][0][1], p["keyframes"][-1][1]
+                        lines.append(f"{indent}         key {p['name']}: {k0} -> {k1}  {len(p['keyframes'])} keys  {span}"
+                                     + ("  OUTSIDE THE CLIP (never visible)" if out else ""))
+            for t in tr["transitions"]:
+                counts["transitions"] += 1
+                lines.append(f"{indent}  {t['start']:7.3f}-{t['end']:7.3f}  transition {t['name']} ({t['match']})")
+    return lines, counts
+
+
+def cmd_inventory(a):
+    info = json.load(open(a.analysis, encoding="utf-8"))
+    lines, counts = inventory_lines(info)
+    print(f"SEQUENCE {info.get('name')} {info.get('size')} {info.get('fps')} fps {info.get('duration')} s")
+    print("\n".join(lines))
+    for name, ni in (info.get("nested_sequences") or {}).items():
+        nl, nc = inventory_lines(ni, "    ")
+        print(f"NESTED {name} {ni.get('size')} {ni.get('duration')} s")
+        print("\n".join(nl))
+        for k in counts:
+            counts[k] += nc[k]
+    print("TOTAL " + " ".join(f"{k}={v}" for k, v in counts.items()))
+    print("CHECK every line above is either in the style (with its values and timing rule) or written off with a reason "
+          "(disabled, never visible, one-off). Keys OUTSIDE THE CLIP are leftovers.")
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -528,7 +608,11 @@ def main():
     a.add_argument("--seq")
     s = sub.add_parser("sequences")
     s.add_argument("project")
+    iv = sub.add_parser("inventory")
+    iv.add_argument("analysis", help="analysis.json written by analyze")
     args = ap.parse_args()
+    if args.cmd == "inventory":
+        return cmd_inventory(args)
     proj = Project(args.project)
     if args.cmd == "sequences":
         for sq in proj.sequences():

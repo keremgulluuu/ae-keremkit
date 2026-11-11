@@ -38,7 +38,9 @@ DEFAULT_RULES = {
     "min_words": 2,               # fewer than this -> merge into a neighbour
     "max_words": None,            # None = max_words_per_line * max_lines
     "max_chars_per_line": None,   # optional hard character limit per line
-    "split_mode": "hybrid",       # words | sentence | hybrid
+    "split_mode": "hybrid",       # words | sentence | hybrid | pairs (fewest one-word cues, may cross sentences)
+    "break_at": [],               # timeline times a cue never crosses (section cuts) - used by 'pairs'
+    "skip_before": None,          # no captions before this timeline time (e.g. an intro whose texts carry the hook)
     "orphan": "rebalance",        # rebalance | extra_line | allow
     "orphan_max_words": 1,        # a leftover this small counts as an orphan
     "break_on_pause": 0.6,        # a pause this long always starts a new cue (s)
@@ -49,6 +51,7 @@ DEFAULT_RULES = {
     "no_break_after": None,       # None = built-in list for the language; or your own list of words
                                   # avoid ending a line with these words (or with a number)
     "case": "as_is",              # as_is | upper | lower | sentence
+    "proper_nouns": [],           # with case lower: these keep their spelling (and suffixes: "Nike'ın")
     "strip_punctuation": "trailing",  # none | trailing | all
     "keep_punctuation": "?!",     # always kept even when stripping
     "highlight": {
@@ -355,7 +358,14 @@ def fmt_word(w, r):
     if r["case"] == "upper":
         w = to_upper(w, r.get("language"))
     elif r["case"] == "lower":
-        w = to_lower(w, r.get("language"))
+        low = to_lower(w, r.get("language"))
+        for pn in r.get("proper_nouns") or []:          # names keep their spelling: Türkiye'de, Nike, DM'den
+            key = to_lower(pn, r.get("language"))
+            rest = low[len(key):]
+            if low.startswith(key) and (not rest or rest[0] in "'’" or not rest[0].isalpha()):
+                low = pn + low[len(key):]
+                break
+        w = low
     return w
 
 
@@ -382,11 +392,53 @@ def pick_highlights(words, r):
     return sorted(i for _, i in sorted(scored)[: h.get("max_per_cue", 1)])
 
 
+def pair_words(words, r):
+    """split_mode 'pairs': cues of 1..max_words words with as few one-word cues as possible. Cues may run over a
+    sentence end (small cost) but never over a long pause, a zone change or a time in break_at; a one-word cue is
+    free only when the word cannot join a neighbour (e.g. two words would exceed max_chars_per_line)."""
+    mx = r.get("max_words") or r["max_words_per_line"] * r["max_lines"]
+    mc = r.get("max_chars_per_line") or 10 ** 6
+    breaks = sorted(r.get("break_at") or [])
+    gap_max = r.get("break_on_pause") or 1.0
+
+    def ok(grp):
+        if len(" ".join(fmt_word(w["w"], r) for w in grp)) > mc:
+            return False
+        for a, b in zip(grp, grp[1:]):
+            if b["s"] - a["e"] >= gap_max or a["z"] != b["z"] or any(a["s"] < t - 0.02 <= b["s"] for t in breaks):
+                return False
+        return True
+    n, inf = len(words), float("inf")
+    best, how = [0.0] + [inf] * n, [0] * (n + 1)
+    for i in range(1, n + 1):
+        for k in range(1, min(mx, i) + 1):
+            grp = words[i - k:i]
+            if k > 1 and not ok(grp):
+                continue
+            if k == 1:
+                joinable = (i >= 2 and ok(words[i - 2:i])) or (i < n and ok(words[i - 1:i + 1]))
+                cost = 100 if joinable else 0
+            else:
+                cost = 3 * sum(1 for w in grp[:-1] if SENT_END.search(w["w"]))
+            if best[i - k] + cost < best[i]:
+                best[i], how[i] = best[i - k] + cost, k
+    out, i = [], n
+    while i > 0:
+        out.append(words[i - how[i]:i])
+        i -= how[i]
+    return out[::-1]
+
+
 def build_cues(words, r, zone_end=None):
-    cues = []
-    for g in phrases(words, r):
-        cues.extend(chunk(g, r))
-    cues = fix_small(cues, r)
+    if r.get("skip_before"):
+        words = [w for w in words if w["s"] >= r["skip_before"] - 0.05]
+    if r.get("split_mode") == "pairs":
+        cues = pair_words(words, r)
+    else:
+        cues = []
+        for g in phrases(words, r):
+            cues.extend(chunk(g, r))
+        cues = fix_small(cues, r)
     allowed = r["max_lines"] + (1 if r["orphan"] == "extra_line" else 0)
     queue, sized = list(cues), []
     while queue:

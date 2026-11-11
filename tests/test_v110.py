@@ -279,3 +279,51 @@ def test_short_silence_inside_a_word_is_not_cut(tmp_path, has_ffmpeg):
     assert any(s["src_in"] <= 1.0 and s["src_out"] >= 1.12 for s in segs)     # the in-word gap stays
     assert not any(s["src_in"] < 2.3 < s["src_out"] for s in segs)            # the real pause is cut
     assert "in_word_gaps_kept=" in out
+
+
+def test_inventory_shows_in_out_animation_and_leftover_keys(tmp_path):
+    info = {"name": "Main", "size": [1080, 1920], "fps": 30, "duration": 12.5, "audio": [], "nested_sequences": {},
+            "video": [{"index": 6, "transitions": [], "items": [
+                {"start": 2.3, "end": 14.8, "dur": 12.5, "name": "Sweatshirt", "kind": "nested", "src": "Sweatshirt",
+                 "in": 0.0, "disabled": False, "effects": [
+                     {"match": "AE.ADBE Geometry2", "name": "Transform", "params": [
+                         {"name": "Opacity", "value": 100, "keyframes": [[11.684, 100.0], [12.517, 0.0]]}]},
+                     {"match": "AE.ADBE Geometry2", "name": "Transform", "params": [
+                         {"name": "Opacity", "value": 100, "keyframes": [[0.0, 0.0], [0.833, 100.0]]}]},
+                     {"match": "AE.ADBE Geometry2", "name": "Transform", "params": [
+                         {"name": "Opacity", "value": 100, "keyframes": [[25.0, 100.0], [25.8, 0.0]]}]}]},
+                {"start": 0, "end": 2.3, "dur": 2.3, "name": "ref.png", "kind": "media", "disabled": True, "effects": []}]}]}
+    p = tmp_path / "a.json"
+    p.write_text(json.dumps(info), encoding="utf-8")
+    out = run("prproj.py", "inventory", p).stdout
+    assert "start+0.000..+0.833" in out and "end-0.816..end+0.017" in out
+    assert "OUTSIDE THE CLIP" in out and "DISABLED" in out
+    assert "TOTAL items=2 effects=3 keyed=3 outside=1 transitions=0 disabled=1" in out
+
+
+def test_pairs_mode_proper_nouns_and_section_breaks(tmp_path):
+    items = [("[laughter]", 0.0, 0.3), ("ürün", 0.3, 0.6), ("part", 0.6, 0.9), ("Evet,", 1.0, 1.2), ("böyle", 1.2, 1.4),
+             ("bir", 1.4, 1.5), ("ürünle", 1.5, 1.8), ("başladık.", 1.8, 2.2), ("Nike'ın", 2.3, 2.6), ("getirebileceğine", 2.6, 3.2),
+             ("inanıyorum.", 3.2, 3.7), ("Böyle", 4.0, 4.2), ("bir", 4.2, 4.3)]
+    wp = words_json(tmp_path, items)
+    rules = tmp_path / "r.json"
+    rules.write_text(json.dumps({"split_mode": "pairs", "max_words_per_line": 2, "max_lines": 1, "max_words": 2,
+                                 "min_words": 1, "max_chars_per_line": 20, "case": "lower", "strip_punctuation": "all",
+                                 "keep_punctuation": "", "proper_nouns": ["Nike"], "break_at": [4.0], "skip_before": 1.0,
+                                 "highlight": {"modes": []}}), encoding="utf-8")
+    run("subtitles.py", "build", "--words", wp, "--rules", rules, "-o", tmp_path / "s")
+    cues = [c["t"] for c in json.loads((tmp_path / "s.json").read_text(encoding="utf-8"))["cues"]]
+    assert "laughter" not in " ".join(cues) and "ürün" not in cues[0]          # tags dropped, intro skipped
+    assert all(len(c) <= 20 for c in cues)
+    assert "Nike'ın" in " ".join(cues)                                       # proper noun keeps its case
+    assert "inanıyorum böyle" not in cues                                    # never across the section break
+    singles = [c for c in cues if " " not in c]
+    assert set(singles) <= {"getirebileceğine", "inanıyorum", "nike'ın", "Nike'ın", "bir", "böyle"}
+    assert len(singles) <= 3
+
+
+def test_cutlist_ignores_sound_tags(tmp_path):
+    sys.path.insert(0, SCRIPTS)
+    import cutlist
+    wp = words_json(tmp_path, [("[laughter]", 0.0, 1.0), ("merhaba", 1.2, 1.6)])
+    assert [w[2] for w in cutlist.load_words(str(wp))] == ["merhaba"]

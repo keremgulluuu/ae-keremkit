@@ -64,7 +64,7 @@ A preset sequence usually holds adjustment layers (Tint, blurs) **plus** overlay
 1. `keremkit.py search "<style name>" --type style` - **if the slug exists, ask** (new version via the archive, or a new name). Never write over an existing `styles/<slug>/style.json`.
 2. `keremkit.py safe-copy <project.prproj> <home>/library/_work/<job>/<Project>_copy.prproj`.
 3. `prproj.py sequences <copy>` -> pick the edited sequence with the user if unclear.
-4. `prproj.py analyze <copy> --out <job>/analysis.json [--seq NAME]` - read only the printed summary; open the JSON only for the one value needed.
+4. `prproj.py analyze <copy> --out <job>/analysis.json [--seq NAME]`, then `prproj.py inventory <job>/analysis.json` - one line per track, clip, effect, keyframed parameter, text style and transition, nested sequences included. Work through it with the checklist in `edit-styles.md` -> Learning from a finished project: the checklist. Every line ends up in the style or is written off with a reason. Example of what is easy to miss: two Transform effects on each product video nest (IN over the first 0.833 s, OUT over the last 0.833 s), which show up only as keyframes on the nested clip.
 5. Draft the style (`edit-styles.md`): shared parts as usual (cut tightness from clip durations, SFX levels, caption timing), Premiere-only parts under `"premiere"`:
    ```json
    "premiere": {

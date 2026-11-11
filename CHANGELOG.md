@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.12.0] - 2026-11-11
+
+### Added
+- **Style-learning checklist** (edit-styles.md): twelve explicit steps from inventory to accounting for every line - every track, every clip, every effect including on nested clips, every keyframed parameter with its timing relative to the clip and its easing, repeated patterns as rules, text, made transitions, audio, sequence settings, write-offs with reasons, and the totals. Plus a building checklist: every style element built as real, editable effects and keyframes (never baked into renders) and read back.
+- `prproj.py inventory`: one line per track, clip, effect, keyframed parameter (`start+0.000..+0.833` / `end-0.816..end+0.017`), text style and transition, nested sequences included; flags disabled clips and keys outside the clip; totals.
+- `subtitles.py`: `split_mode: pairs` (1-2 word cues with the fewest one-word cues, never across `break_at` section cuts), `skip_before` (no captions under an intro) and `proper_nouns` (kept in lowercase captions, suffixes included).
+
+### Fixed
+- `cutlist.py` treated verbatim sound tags (`[laughter]`) as words and kept bits of laughter.
+
 ## [1.11.0] - 2026-11-11
 
 ### Added

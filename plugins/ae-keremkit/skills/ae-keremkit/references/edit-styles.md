@@ -54,6 +54,35 @@ Three ways - all end with a draft shown to the user for confirmation, then `kere
 - **From a Premiere project (.prproj):** on a copy, `prproj.py analyze` -> draft; Premiere-only parts go under `"premiere"` in style.json. Steps in `premiere.md` -> Learning a style.
 - **Before writing `styles/<slug>/style.json`, always** `keremkit.py search "<name>" --type style`. Same name = same slug = same folder: if it exists, ask (a new version through the archive, or a new name). Never write over a style.
 
+### Learning from a finished project: the checklist
+
+A style learned from a project must hold every element of the edit. Missing one means the next edit is built without it, and the user has to find it. Go through the inventory line by line, not from memory of what "usually matters":
+
+1. **Make the inventory.** Premiere: `prproj.py analyze <copy> --seq <edited sequence> --out a.json`, then `prproj.py inventory a.json`. After Effects: the project export, then `digest.py` per scene comp, and `layer.info` for animated layers. The inventory is the list to work through. Note its TOTAL line.
+2. **Every track, top to bottom, video and audio.** What it holds (camera, b-roll, product, text, captions, overlays, SFX, music), and whether the track is muted or locked.
+3. **Every clip on it.** Source file, start and end, in/out, speed, reverse, clip gain, the disabled flag. Also how its length is chosen: follows a sentence, a section, a fixed duration or the product video.
+4. **Every effect on every clip, including on nested clips** (product videos, cards, intros).
+   - Its name and match name, and every parameter that differs from the effect's default.
+   - Effects that are applied twice: each one separately, in stack order.
+5. **Every keyframed parameter.**
+   - Start and end values and the number of keys.
+   - Timing relative to the clip, as the inventory prints it: `start+0.000..+0.833` = an in animation, `end-0.816..end+0.017` = an out animation.
+   - The easing: bezier speed and influence, from the raw keyframe string when it matters.
+   - Write the rule, not the reference's absolute times: "every product video: Transform IN over its first 0.833 s, OUT over its last 0.833 s".
+6. **Repeated patterns.** The same effect and keys on several clips (all product videos, every section cut) is one rule of the style. Check that each instance matches; differences are either variants to record or leftovers.
+7. **Text.** Font (PostScript name), size, fill, stroke colour and width, shadow, box, alignment, position and anchor, case. Also the timing of each line, and whether it is one graphic or one per line.
+8. **Transitions.** Placed transitions plus "made" ones (adjustment layers with keyed effects, overlays with blend modes). Record where they sit relative to the cut point.
+9. **Audio.** Every SFX (file, which event, offset, level), music (file, start rule, level, fades, ducking), and track effects and levels.
+10. **Sequence settings.** Size, frame rate, colour setup, and the work-area length rule.
+11. **Write-offs, each with a reason:** disabled clips, keys OUTSIDE THE CLIP (leftovers after trimming), one-off fixes. They go into the style as "not part of the style: <why>" so the next reader does not re-add them.
+12. **Account for the TOTAL.** Every inventory line is either in the style or written off. Say in the report: "N lines: M in the style, K written off". Then ask the user only about intent the project cannot show.
+
+### Building from a style: the checklist
+
+- Before building, list every element of the style (intro parts, sections, product rules, animations, transitions, SFX, music, captions) and tick each one off when it is built.
+- Build animations and effects as **real, editable keyframes and effects** in the target app (Premiere: `apply_effect` + `add_keyframe`, or copy from a reference clip; AE: properties and keys). Never bake a style's movement into a rendered video unless the user asks: it cannot be adjusted and its easing drifts from the original.
+- At the end, read every element back (`get_keyframes`, `get_effect_properties`, `comp.info`) and report anything that could not be built, saying why.
+
 Names: English `name` (e.g. "Kerem Style"), local names in `names` (e.g. `{"tr": "Kerem Stili"}`), `aliases` for how the user refers to it; slug = ASCII of the name.
 
 ## Learning after an edit

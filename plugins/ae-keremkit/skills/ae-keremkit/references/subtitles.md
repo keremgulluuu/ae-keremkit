@@ -27,6 +27,10 @@ Defaults live in `subtitles.py` (`subtitles.py rules` prints them). Effective ru
 | `min_words` / `max_words` | words per cue (max null = words_per_line x lines) | 2 / null |
 | `max_chars_per_line` | optional hard limit; too-long cues are split | null |
 | `split_mode` | `words` = fill cues regardless of sentences; `sentence` = never cross a sentence end; `hybrid` = sentence-aware and prefers breaking after commas | hybrid |
+| `split_mode: pairs` | for short cues (1-2 words): pairs words with the fewest one-word cues, may run over a sentence end, never over a long pause (`break_on_pause`), a zone or a time in `break_at`; a one-word cue only where two words would exceed `max_chars_per_line` (or an odd word count forces one) | - |
+| `break_at` | timeline times a cue never crosses - the section cuts | [] |
+| `skip_before` | no captions before this time - an intro whose own texts carry the hook | null |
+| `proper_nouns` | with `case: lower`, these keep their spelling, suffixes included ("Türkiye'de", "Nike'ın", "DM'den") | [] |
 | `orphan` | a 1-word leftover: `rebalance` (re-split evenly), `extra_line` (add a line to the previous cue), `allow` | rebalance |
 | `orphan_max_words` | what counts as a leftover | 1 |
 | `break_on_pause` | a pause this long (s) always starts a new cue | 0.6 |
