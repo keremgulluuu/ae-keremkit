@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Bad input ends in one `ERROR:` line instead of a traceback: `keremkit.py add-many` (missing file, empty or comment-only file), `digest.py` (missing file, invalid JSON), `transcript.py remove --into` (a file this tool did not write, invalid JSON included). Nothing is written on those paths.
+- `keremkit.py map add` rejects an unknown `--kind` (comp, layer, element, asset, open, decision) instead of writing the row. `map.tsv` and `names.tsv` with a wrong header are refused with the expected columns instead of silently misreading rows (a missing header used to surface later as `KeyError: 'kind'`).
+- `subtitles.py build -o` refuses an output name that would overwrite `--words`, `--plan` or `--rules`: `--words cam.json -o cam` silently replaced the transcript with the subtitle JSON.
+
+### Changed
+- `references/design-plan.md` names `techniques.py list`; `techniques.py search` never existed, so the instruction always failed.
+
 ## [2.1.0] - 2026-11-13
 
 ### Added

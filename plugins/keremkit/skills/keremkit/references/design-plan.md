@@ -27,7 +27,7 @@ One line per hit: `good` (all words matched) or `partial`, score, id, name, summ
 | A `partial` hit, or a good one that could clearly be better | use it, **or** build it from scratch in a stated better way (medium / high cost) |
 | No useful hit, but a free stock element fits (footage, overlay, sound, icon, logo) | `assets.py search` - offer it (low cost), or build it (`assets.md`) |
 | No useful hit | ask whether to build it from scratch (medium / high cost) |
-| A technique rather than an element (a cut, a flash, a zoom) | `techniques.py search`, no library item needed |
+| A technique rather than an element (a cut, a flash, a zoom) | `techniques.py list`, no library item needed |
 
 Cost words, always the same: **low** = existing item placed and adjusted (a few calls); **medium** = a simple element built new (a few batches); **high** = a complex or animated design built new (many batches, possibly several rounds). Say "from scratch" only with a concrete idea of what would be better ("with a glass card and a count-up instead of a static number").
 

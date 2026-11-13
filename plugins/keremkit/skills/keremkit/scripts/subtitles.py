@@ -502,6 +502,10 @@ def write_outputs(base, cues, zones, rules):
 
 
 def cmd_build(a):
+    out = os.path.abspath(a.output + ".json")
+    for src in (a.words, a.plan, a.rules):
+        if src and os.path.abspath(src) == out:
+            sys.exit(f"ERROR: -o {a.output} would overwrite the input file {src} - pick another output name")
     rules = merge_rules(DEFAULT_RULES, load_json(a.rules) if a.rules else {})
     rules = merge_rules(rules, parse_set(a.set))
     words, zones = [], []

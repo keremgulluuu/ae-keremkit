@@ -14,6 +14,7 @@ prefixes, texts, comps and durations wherever they appear.
 """
 import argparse
 import json
+import os
 import re
 import sys
 from collections import Counter
@@ -190,8 +191,13 @@ def main():
     a = ap.parse_args()
     if a.deep and not a.comp:
         ap.error("--deep needs --comp NAME")
-    with open(a.file, encoding="utf-8") as f:
-        data = json.load(f)
+    if not os.path.isfile(a.file):
+        sys.exit(f"ERROR: file not found: {a.file}")
+    try:
+        with open(a.file, encoding="utf-8") as f:
+            data = json.load(f)
+    except ValueError as e:
+        sys.exit(f"ERROR: {a.file} is not valid JSON: {e}")
     if a.comp:
         found = []
 

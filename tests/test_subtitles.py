@@ -78,7 +78,7 @@ def test_turkish_casing(tmp_path):
     w = [{"word": " istanbul", "start": 0.1, "end": 0.5}, {"word": " ılık", "start": 0.6, "end": 0.9}]
     p = tmp_path / "tr.json"
     p.write_text(json.dumps({"language": "tr", "segments": [{"words": w}]}), encoding="utf-8")
-    data = cues(build(tmp_path, p, 'case="upper"', name="tr"))
+    data = cues(build(tmp_path, p, 'case="upper"', name="tr_subs"))
     assert data[0]["t"] == "İSTANBUL ILIK"
 
 
