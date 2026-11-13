@@ -780,11 +780,15 @@ def cmd_save_check(a):
 def cmd_add_many(a):
     """Rows: id category name local tags summary comp size fps duration [pack original_comp fonts footage usage_note]."""
     h = need_home(home_dir(a.home))
+    need = ["id", "category", "name", "tags", "summary", "comp", "size", "fps", "duration"]
+    if not os.path.isfile(a.file):
+        sys.exit(f"ERROR: file not found: {a.file}")
     lang = (deep_fill(rjson(prefs_path(h), {}), DEFAULT_PREFS)["language"].get("library") or "tr")
     with open(a.file, encoding="utf-8") as f:
         lines = [ln.rstrip("\n\r") for ln in f if ln.strip() and not ln.startswith("#")]
+    if not lines:
+        sys.exit(f"ERROR: {a.file} has no rows - first line must be a header with: {' '.join(need)}")
     head = lines[0].split("\t")
-    need = ["id", "category", "name", "tags", "summary", "comp", "size", "fps", "duration"]
     miss = [k for k in need if k not in head]
     if miss:
         sys.exit(f"ERROR: header misses: {', '.join(miss)}")
@@ -1032,6 +1036,7 @@ def cmd_style_get(a):
 
 
 # ---------------------------------------------------------------- project map
+MAP_KINDS = ["comp", "layer", "element", "asset", "open", "decision"]
 MAP_COLS = ["kind", "name", "comp", "time", "purpose", "status", "updated"]
 NAME_COLS = ["thing", "canonical", "note"]
 BRANDKIT_TEMPLATE = """# Brand kit and build values of this project
@@ -1068,7 +1073,11 @@ def read_tsv(p, cols):
         return []
     with open(p, encoding="utf-8") as f:
         lines = f.read().splitlines()
-    head = lines[0].split("\t") if lines else cols
+    if not lines:
+        return []
+    head = lines[0].split("\t")
+    if any(c not in head for c in cols):
+        sys.exit(f"ERROR: {p}: header must contain {' '.join(cols)} - found: {' '.join(head)}")
     return [dict(zip(head, ln.split("\t") + [""] * len(head))) for ln in lines[1:] if ln.strip()]
 
 
@@ -1098,6 +1107,8 @@ def cmd_map(a):
     if a.action == "add":
         if not (a.kind and a.name):
             sys.exit("ERROR: map add needs --kind and --name")
+        if a.kind not in MAP_KINDS:
+            sys.exit(f"ERROR: --kind must be one of {', '.join(MAP_KINDS)} (got {a.kind!r})")
         rows = read_tsv(mp, MAP_COLS)
         key = (a.kind, a.name, a.comp or "")
         row = next((r for r in rows if (r["kind"], r["name"], r["comp"]) == key), None)
@@ -1264,7 +1275,7 @@ def main():
     mpp.add_argument("action", choices=["init", "add", "find", "name", "show"])
     mpp.add_argument("project", help="project file or folder (the map lives in <folder>/_keremkit/)")
     mpp.add_argument("words", nargs="*")
-    mpp.add_argument("--kind", help="comp | layer | element | asset | open | decision")
+    mpp.add_argument("--kind", help=" | ".join(MAP_KINDS))
     mpp.add_argument("--name")
     mpp.add_argument("--comp")
     mpp.add_argument("--time", help="e.g. 52:00-54:15")

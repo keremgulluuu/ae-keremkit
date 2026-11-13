@@ -534,8 +534,18 @@ def cmd_remove(a):
         found.append({"src_in": round(float(ws[i].get("start", 0)), 3), "src_out": round(float(ws[j].get("end", 0)), 3),
                       "kind": "manual", "confidence": "high", "apply": True, "words": [i, j],
                       "removed": " ".join(text_of(w) for w in ws[i:j + 1]), "reason": a.reason or ""})
-    data = load(a.into) if os.path.isfile(a.into) else {"words_file": a.words, "removals": []}
-    data["removals"] = sorted(data.get("removals", []) + found, key=lambda r: r["src_in"])
+    if os.path.isfile(a.into):
+        try:
+            data = load(a.into)
+        except ValueError:
+            sys.exit(f"ERROR: {a.into} is not a removals file this tool wrote - fix or remove it, nothing was changed")
+    else:
+        data = {"words_file": a.words, "removals": []}
+    rem = data.get("removals") if isinstance(data, dict) else None
+    if not isinstance(rem, list) or any(not isinstance(r, dict) or any(
+            not isinstance(r.get(k), (int, float)) for k in ("src_in", "src_out")) for r in rem):
+        sys.exit(f"ERROR: {a.into} is not a removals file this tool wrote - fix or remove it, nothing was changed")
+    data["removals"] = sorted(rem + found, key=lambda r: r["src_in"])
     for k, r in enumerate(data["removals"], 1):
         r["id"] = k
     with open(a.into, "w", encoding="utf-8") as f:
