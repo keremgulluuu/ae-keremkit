@@ -21,6 +21,8 @@
            those spots into its own wav. Transcribe every wav alone, fill "text"/"words", then:
   retakes  bursts.json [--into repeats.json]
            a burst whose end repeats the start of the next burst is a retake (the later take is kept)
+  remove   W.json --index A-B [--index C-D] [--reason "..."] --into removals.json
+           manual removals by word index range (from `words`) for cutlist.py build --remove
 
 Times are source seconds of the recording the JSON belongs to.
 """
@@ -517,6 +519,32 @@ def cmd_retakes(a):
     print(f"OK hidden_retakes={len(found)} -> {out}")
 
 
+def cmd_remove(a):
+    """Manual removals by word index range (indices from `words`), added to a removals file for cutlist.py."""
+    ws = words_of(load(a.words))
+    found = []
+    for spec in a.index:
+        lo, _, hi = spec.partition("-")
+        try:
+            i, j = int(lo), int(hi or lo)
+        except ValueError:
+            sys.exit(f"ERROR: --index wants A-B word indices (from `transcript.py words`), got {spec!r}")
+        if not (0 <= i <= j < len(ws)):
+            sys.exit(f"ERROR: index range {spec} outside 0-{len(ws) - 1}")
+        found.append({"src_in": round(float(ws[i].get("start", 0)), 3), "src_out": round(float(ws[j].get("end", 0)), 3),
+                      "kind": "manual", "confidence": "high", "apply": True, "words": [i, j],
+                      "removed": " ".join(text_of(w) for w in ws[i:j + 1]), "reason": a.reason or ""})
+    data = load(a.into) if os.path.isfile(a.into) else {"words_file": a.words, "removals": []}
+    data["removals"] = sorted(data.get("removals", []) + found, key=lambda r: r["src_in"])
+    for k, r in enumerate(data["removals"], 1):
+        r["id"] = k
+    with open(a.into, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    for r in found:
+        print(f"REMOVE\t{mmss(r['src_in'])}-{mmss(r['src_out'])}\t\"{r['removed'][:70]}\"")
+    print(f"OK manual={len(found)} total={len(data['removals'])} -> {a.into}")
+
+
 def cmd_accept(a):
     data = load(a.file)
     ids = {int(x) for x in (a.ids or "").split(",") if x.strip()}
@@ -579,9 +607,14 @@ def main():
     rt.add_argument("manifest")
     rt.add_argument("--into", help="add the hidden retakes to this repeats.json (for cutlist.py build --remove)")
     rt.add_argument("-o", "--output")
+    rm = sp.add_parser("remove")
+    rm.add_argument("words")
+    rm.add_argument("--index", action="append", required=True, help="A-B word indices (repeatable)")
+    rm.add_argument("--reason")
+    rm.add_argument("--into", required=True, help="removals file (created if missing; repeats.json works)")
     a = ap.parse_args()
     {"words": cmd_words, "review": cmd_review, "fix": cmd_fix, "repeats": cmd_repeats, "accept": cmd_accept,
-     "bursts": cmd_bursts, "retakes": cmd_retakes}[a.cmd](a)
+     "bursts": cmd_bursts, "retakes": cmd_retakes, "remove": cmd_remove}[a.cmd](a)
 
 
 if __name__ == "__main__":

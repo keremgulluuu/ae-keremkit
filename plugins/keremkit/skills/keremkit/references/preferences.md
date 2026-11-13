@@ -14,6 +14,24 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 - **One question at a time** where possible; recommended option first.
 - **Language.** All templates below are in English; ask in the user's language.
 
+## Every question explains itself
+
+No bare yes/no questions, anywhere: chat, question boxes, wrap-up boxes. Each question carries:
+1. **What was found** - in plain words, with the file, comp/layer or time it concerns.
+2. **Why it is asked** - what it changes and why Claude cannot decide it alone.
+3. **The options and what each does**, 2-3 that fit the project's structure, Claude's pick marked ★ with a one-line reason.
+
+Before work, read the project cheaply (map, catalog, one narrow read) and ask all open questions in one numbered block, so the user can answer "1A 2B" or "hepsi önerdiğin gibi":
+
+```
+1. IMG_3904 ve 3905'in her birinde iki ayrı part var (3904: 0:00-0:41 ve 0:41-1:20).
+   Neden soruyorum: tek reels mi iki reels mi olacağı kesimi ve altyazı dosyalarını değiştirir.
+   A) ★ Her part ayrı reels - stildeki "part başına bir video" düzenine uyuyor.
+   B) İkisi tek reels - daha uzun ama intro bir kez.
+```
+
+A short question box (wrap-up, AskUserQuestion) gets this explanation in the message right before it.
+
 ## Keys and when to ask
 
 | Key | Ask when | Question |
@@ -53,6 +71,9 @@ All remembered choices live in `KeremKit/settings/preferences.json`. Read with `
 | `formats.targets` | first multi-format request | "Which formats do you publish to? (16:9, 9:16, 1:1, 4:5)" |
 | `qc.mode` | default `ask` | "Should I always run the quality check before the final render?" |
 | `organize.mode` | default `auto`; change when the user asks | - |
+| `organize.precomp_elements` | the first time a multi-layer element lands in a main comp | "Should every multi-layer element become one precomp in the main comp (tidier, one layer per element), unless that would break it?" → `on` / `off` / `ask` |
+| `motion.transform_rig` | the first time something is animated in AE | "Should moves be keyed on a parent Null (layer keeps no own transform keys; easy to duplicate and re-time) or directly on the layer?" → `parent_null` / `direct` |
+| `motion.blur` | the first time something animates | "Should animations get motion blur? It looks smoother, renders slower." → `always` / `ask` / `off` (`motion-blur.md`) |
 | `learning.ask_after_edit` | default true | - |
 
 ## Style versioning

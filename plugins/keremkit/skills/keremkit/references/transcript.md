@@ -94,6 +94,8 @@ Emin olmadıklarım:
 
 Apply the user's answers with `transcript.py accept repeats.json --ids 3 --reject 4`, then build the cut.
 
+Other spans to drop (chatter, a sentence the user wants out): `transcript.py remove cam.json --index 412-431 --reason "off-topic" --into repeats.json` - indices from `transcript.py words`, taken from the same file you pass (no scratch scripts).
+
 ## 4b. Hidden retakes (every edit, before cutting)
 
 A normal Whisper model can write several takes of a sentence **once** and stretch one word over the extra takes (IMG_3810: "üretebilecek" 4.76 s over 3 takes). Text comparison cannot see that. Check every edit:

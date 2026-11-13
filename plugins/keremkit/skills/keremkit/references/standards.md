@@ -57,6 +57,14 @@ These are suggestions, not the kit's taste. Say which ones you are about to use 
 - Stagger elements entering together by 2-4 frames.
 - Easing via `keyframe.set_easing`; check timing with `comp.sample`.
 
+## Motion mechanisms (the user's preferences decide)
+
+- **Transform rig** - `motion.transform_rig` (null = ask once, the first time something is animated):
+  - `parent_null`: every transform animation (Position/Scale/Rotation) is keyed on a parent Null (`NULL_<Element>` / `CTRL_<Element>`); the layer itself gets no transform keys. A layer that must also move on its own gets a second null (null chain) or a Transform effect on the layer. Duplicating an element = duplicate the null with its children.
+  - `direct`: keys on the layer itself.
+- **Motion blur** - `motion.blur` and `motion-blur.md`.
+- Both are recorded per project in `_keremkit/brandkit.md` → Motion when a project differs from the preference.
+
 ## Render
 
 `render.mode`: `auto` (start when the edit is verified), `ask` (ask first), `queue` (add to queue, user starts). `render.format`: the user's words (e.g. "MP4 H.264", "ProRes 422 HQ"); map to an AE output-module template from `render.list_templates` - if none fits, say so and suggest `render.queue_in_ame`. Output path: `render.output_folder` (ask once if null) + `render.naming`. Report the file path and duration when done; check `render.status` sparingly (not in a tight loop).

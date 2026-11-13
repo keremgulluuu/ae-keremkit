@@ -40,6 +40,11 @@ Typical costs (direct tool calls from the chat):
 - Heavy work outside AE: Whisper, `transcript.py`, `cutlist.py`, `subtitles.py`, ffmpeg. Read their one-line results.
 - Verify with numbers, not frames (`verification.md`).
 - Try a bulk change on one layer, then apply to all in one batch.
+- **Expensive reads to avoid** (measured in real sessions): `comp.info` of a big comp (60+ layers, ~5-15k) when only the work area or one layer is needed; `layer.info` on precomps (~25k); `item.list` without a filter (~5-15k); `effect.list_on_layer` on Deep Glow / Keylight layers (80-160 params, ~15k); `font.list` (~6k - grep the Fonts folder). Use `layer.bounds`, `comp.sample`, `render.get_settings`, the ids returned by the op that created the item.
+- **Parameter names:** grep `ae-ops.md` before writing a batch; a wrong name costs a whole round trip.
+- **Before anything new:** `keremkit.py find <words>` (library, techniques, assets, sessions) - building what already exists was the most expensive mistake in the notes.
+- Large style JSON: `keremkit.py style-get <slug> <key>` instead of reading `style.json` whole.
+- Analyser output: filter BEFORE the first read (`digest.py --deep` without `--params` first; `--params` only for chosen layers).
 
 ## 3. Premiere: the cheap way
 
@@ -79,4 +84,13 @@ Typical costs (direct tool calls from the chat):
    - The commands or prompt to continue in a new chat.
 
    At the end of the task, give the user its full path in one line so they can take it to another chat.
-3. Something that needs the skill itself changed still goes to `learning/skill-change-requests.md` (SKILL.md, "The skill is read-only").
+3. Something that needs the skill itself changed still goes to `learning/skill-change-requests.md` (SKILL.md, "The skill is read-only"), one section per request:
+   ```
+   ## <short title> (YYYY-MM-DD)
+   Status: open
+   - File: references/... or scripts/...
+   - Problem: ...
+   - Proposed change: ...
+   ```
+   The maintainer sets `Status: done X.Y.Z` when it ships and moves it out with `keremkit.py learning-archive`, so agents read only open items.
+4. **Bulk update:** the review checklist (`qc.md` → Review checklist) goes into the session report too.

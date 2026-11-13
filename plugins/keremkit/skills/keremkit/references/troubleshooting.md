@@ -18,10 +18,12 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 
 ## After Effects not responding
 
-- `NO_INSTANCE` / no running AE: ask the user to open After Effects (normally, not with `-m`), then retry once.
-- A dialog is blocking: `instance.dialogs` -> `instance.dismiss_dialog`.
-- Long operations: raise `timeoutMs` (render.start, big batches).
-- Memory: `project.purge`.
+- `NO_INSTANCE` / no running AE: ask the user to open After Effects (normally, not with `-m`). Before the next call, check the AfterFX process has a window title and `Responding=True` (PowerShell `Get-Process AfterFX`) - calls during boot or a long open fail the same way.
+- "Attempt was made to run a second script" (DIALOG_OPEN) after a big batch, a save or `project.open`: the call was discarded, nothing applied. `instance.dismiss_dialog {id}`, then resend the same call. Recurring while the project is saved from outside → another client drives AE: stop and ask.
+- Big project open timed out: AE is still opening it - wait for `Responding=True`, then `ae_project_info`. Next time `timeoutMs: 300000`.
+- Long operations: raise `timeoutMs` (big batches); `render.start` → short timeout and watch the output file.
+- Memory or impossible content in check frames: `project.purge`.
+- Op parameters, AE 2026 defaults, Advanced 3D limits, render pitfalls: `ae-ops.md`.
 
 ## Tool problems (outside AE)
 
@@ -46,6 +48,10 @@ Something broke and the cause is unclear: `project.undo` (reverts the whole last
 | A download fails (YouTube "reload", TikTok "unable to extract") | `download.py setup --update`; sign-in errors -> cookies (`downloads.md`) |
 | Premiere MCP: `HOST_RECOVERY_REQUIRED`, saves refused | an earlier write had an unknown outcome: `premiere.md` -> Safety (inspect, show the user, acknowledge only after review) |
 | Premiere MCP tools missing although installed | the server was added after the chat started: start a new chat |
+| `prbatch.py` says `ALREADY_RUN` | part of the plan was applied: continue with `--from N`; re-running would apply effects twice (idempotency keys live in one server process only) |
+| Premiere: `delete_sequence` of a holder sequence → unknown outcome + recovery lock | don't import nests through a holder you must delete; `inspect_operation_recovery {"backend": "cep"}`, the user deletes it by hand |
+| `pref set` refused ("write KEY=VALUE in one argument") | `pref set 'custom_rules=[...]'` - key and value in one argument; nothing was changed |
+| Cookies: "Could not copy Chrome cookie database" / "Failed to decrypt with DPAPI" | Chrome/Edge/Brave cookies can't be read on Windows (app-bound encryption): Firefox, or a cookies.txt from a logged-in browser (`downloads.md`) |
 | Glass / blur / adjustment item renders empty | it needs content under it: preview a `TMP_PREVIEW_<ID>` comp with a gradient solid underneath (`previews.md`) |
 | `previews.py pick` says `blank` | every probe frame was empty: wrong comp, hidden or disabled layers, missing footage, or the comp's content starts later than its duration suggests |
 | Whisper JSON without word times | subtitles fall back to even timing per segment (a WARN says so); re-run Whisper with word timestamps |

@@ -92,6 +92,9 @@
     "footage": []
   },
   "usage_note": "TXT_Value reads the number from CTRL_Counter by expression and formats thousands; change values via params, not the text.",
+  "logic": "LOGIC.md",
+  "techniques": [],
+  "place_as": "comp",
   "created": "2026-11-08",
   "version": 1,
   "changes": []

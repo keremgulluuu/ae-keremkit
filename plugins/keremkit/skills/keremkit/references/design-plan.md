@@ -4,6 +4,11 @@ Before a design with several parts (an intro, a title card, a video section with
 
 Preference `design.plan`: `big` (default - a plan when the request has 2+ parts or one large part), `always`, `off` (build straight away, as before). Small, single changes ("make that text yellow") never get a plan.
 
+## 0. What already exists
+
+- `keremkit.py find <words>` once for the whole request: library, techniques, downloaded assets, extensions and past sessions in one call. A technique or recipe that exists is used, never rebuilt from scratch.
+- Inside an existing project: `keremkit.py map find <project> <words>` in its `_keremkit/brandkit.md` and map (`project-map.md`) - new parts reuse the project's colours, fonts, motion and effect values and its canonical names.
+
 ## 1. Split the request into parts
 
 From the request, the active style and `learning/house-style.md`: 2-8 parts, each a few words ("intro: animated title", "counter: gold subscriber count", "background: purple moving gradient", "transition: whoosh slide"). Parts follow the order they appear in the video.

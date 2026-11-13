@@ -22,7 +22,9 @@ Up to 4 items per image; for more, show the best 4 and say how many more there a
 
 ## 2. Read
 
-Only that item's `meta.json`: comp name, file, size/fps, params, deps. If `deps.fonts` might be missing, add `font.list_missing` to the first batch and warn (the item can still be placed).
+Only that item's `meta.json`: comp name, file, size/fps, params, deps. `place_as: "layers"` (adjustment-layer items: zoom, glass, focus blur) → copy its layers into the target comp instead of placing the comp.
+
+**"Apply this effect to that element"** ("bunu şu ikona da uygula"): read the item's `LOGIC.md` (and its technique) and rebuild the effect with real keys and effects on the new element. Do not paste the item comp over it. If `deps.fonts` might be missing, add `font.list_missing` to the first batch and warn (the item can still be placed).
 
 ## 3. Bring it in, set it, place it
 

@@ -58,6 +58,8 @@ Public videos need nothing. When the error says sign-in, private, age-restricted
 - a browser name or a cookies.txt path: use it.
 Never ask for passwords; cookies stay on the user's computer.
 
+Windows: Chrome, Edge and Brave (127+) use app-bound encryption - yt-dlp cannot read their cookies, open or closed ("Failed to decrypt with DPAPI", "Could not copy Chrome cookie database"). Working routes: **Firefox** (`--cookies-from-browser firefox`) or a cookies.txt exported by an extension from a browser that is signed in. A logged-out export gives "empty media response": for Instagram check the file contains a `sessionid` cookie - by name only (`grep -c sessionid cookies.txt`), never print the values.
+
 ## Repairing a file that is already there
 
 `download.py check FILE` -> `premiere=ok` or the reasons (VP9/AV1/Opus, 10-bit H.264, variable frame rate). `--scan` decodes the whole file and scores damage (none / mild / moderate / severe / catastrophic).
@@ -80,5 +82,6 @@ HDR sources: `best`/`best_repair` prefer SDR streams. A repaired HDR file keeps 
 
 - `ERROR ... needs to be reloaded` (YouTube): the script already retries once with other player clients; then `setup --update`.
 - TikTok "unable to extract": `setup --update` (TikTok changes often); the script uses browser impersonation and a 1 s request delay.
-- Instagram: most reels need cookies (above).
+- Instagram: most reels need cookies (above). `premiere_fix` may still re-encode (Instagram's served stream is not always Premiere-safe); a `_1` suffix on the output is the repaired file's name, not a clash.
+- TikTok "Impersonate target chrome not available": the system yt-dlp without impersonation may get only 540p HEVC - re-encode to H.264 (`download.py repair`) before AE/Premiere.
 - Repeated failure with the same method -> stop and report (Token rule 8); log the cause in `learning/known-issues.md`.

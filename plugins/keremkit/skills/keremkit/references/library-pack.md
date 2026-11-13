@@ -9,7 +9,7 @@ Read `library-save.md` first (names, tags, categories, meta). This file only cov
 3. **Previews for all items at once** from the work file - `previews.md` (2-4 AE calls in total, whatever the count).
 4. **Per item, one AE call each:** `project.reduce` (alone) -> `ae_save_project(path=<item>/item.aep)` -> `project.open <Pack>_work.aep`. No `stat` per item and no `project.undo` (it can report success while the reduce stays).
 5. **Shell, once:** `keremkit.py save-check <work> --items <every item.aep>`; redo only the ones it lists.
-6. **Shell, once:** `keremkit.py add-many items.tsv`.
+6. **Shell, once:** `keremkit.py add-many items.tsv`, then one `LOGIC.md` per item (`library-save.md` → 5b) - written from the plan and the batches you sent, no extra AE calls. Items that share one mechanism point to one technique instead of repeating it.
 7. Report: items saved per category, any that failed and why.
 
 Parameters inside nested comps: record `target.comp` for each parameter (the nested comp that holds the control), and say in `usage_note` that nested comps are shared between duplicates.

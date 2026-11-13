@@ -30,6 +30,11 @@ bookkeeping on the user's computer and prints only short results.
                                           create the item folders
   save-check WORK [--items ITEM.aep ...]  one step after: the project is unchanged, every item.aep was written
   add-many ITEMS.tsv                      create item folders + meta.json + catalog rows from one table
+  find     WORD [WORD ...] [--n 4]        library-first search in ONE call: catalog, techniques, assets INDEX,
+                                          extensions, learning/sessions, known-issues headings
+  style-get SLUG KEY [KEY ...]            print only these dotted keys of styles/SLUG/style.json
+  map      init|add|find|name|show PROJECT_DIR ...   the project map in <project>/_keremkit/ (references/project-map.md)
+  learning-archive [--file F] [--dry-run] move sections marked "Status: done ..." to <file>.archive.md
 
 All commands except `where`/`init` use the home from the pointer file; pass --home to override.
 """
@@ -43,7 +48,7 @@ import sys
 import unicodedata
 from datetime import date
 
-KIT_VERSION = "2.0.1"
+KIT_VERSION = "2.1.0"
 POINTER = os.path.join(os.path.expanduser("~"), ".keremkit.json")
 DEFAULT_HOME = os.path.join(os.path.expanduser("~"), "Documents", "KeremKit")
 CATALOG_COLS = ["id", "type", "category", "name", "local_name", "summary", "folder", "search"]
@@ -104,6 +109,11 @@ DEFAULT_PREFS = {
         "labels": {"ADJ": 5, "SUB": 1, "TXT": 2, "UI": 11, "ICN": 11, "SHP": 6, "CTRL": 0, "NULL": 0, "CAM": 14,
                    "LGT": 14, "FTG": 8, "BG": 12, "AUD": 9, "SFX": 10, "MATTE": 15, "PRE": 3, "LIB": 13},
         "folders": True,
+        "precomp_elements": None,  # on | off | ask - one layer (+ control null) per multi-layer element in the main comp
+    },
+    "motion": {
+        "transform_rig": None,     # parent_null | direct - drive transform animation from a parent Null, or key the layer itself
+        "blur": None,              # always | ask | off - motion blur on animations (references/motion-blur.md)
     },
     "audio": {"chain": None, "target_lufs": -14, "music_db": -18},
     "formats": {"targets": None},
@@ -269,6 +279,12 @@ LEARNING_FILES = {
     "token-notes.md": "# Token notes\n\nWritten by the AI agent after every task, without asking and without holding back: what cost many "
                       "tokens, what saved tokens, and what should change. The kit's maintainer reads this to make the "
                       "next version cheaper. Format and examples: the skill's references/token-budget.md.\n\n",
+    "skill-change-requests.md": "# Skill change requests\n\nFor the kit's maintainer: real bugs, missing mechanisms or wrong "
+                                "instructions in the skill (never taste rules - those go to the user's style).\n"
+                                "One `## ` section per request:\n\n```\n## <short title> (YYYY-MM-DD)\nStatus: open\n"
+                                "- File: references/... or scripts/...\n- Problem: ...\n- Proposed change: ...\n```\n\n"
+                                "The maintainer sets `Status: done X.Y.Z` when it ships; `keremkit.py learning-archive` "
+                                "then moves it to the archive.\n\n",
     "house-style.md": "# House Style\n\nShort, durable design rules the user stated (one line each, max ~60 lines).\n"
                       "Read before designing anything new. Style-specific rules belong in the style, not here.\n\n"
                       "## Typography\n\n## Color\n\n## Motion\n\n## Layout\n\n## Avoid\n",
@@ -317,6 +333,11 @@ def cmd_pref(a):
         v = get_key(prefs, a.args[0] if a.args else "")
         print("MISSING" if v == "__MISSING__" else json.dumps(v, ensure_ascii=False))
     elif a.action == "set":
+        bad = [x for x in a.args if "=" not in x or not x.partition("=")[0].strip()]
+        if bad:
+            # `pref set key value` once wrote key="" and turned the value into junk keys (custom_rules wiped)
+            sys.exit(f"ERROR: write KEY=VALUE in one argument (got {bad[0][:40]!r}); nothing was changed. "
+                     "Long lists: pref set 'custom_rules=[...]'")
         for pair in a.args:
             k, _, raw = pair.partition("=")
             try:
@@ -751,6 +772,9 @@ def cmd_save_check(a):
     if problems:
         sys.exit(1)
     print(f"OK\tproject unchanged\t{len(a.items or [])} item file(s) written")
+    for p in a.items or []:
+        if not os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(p)), "LOGIC.md")):
+            print(f"TODO\tLOGIC.md missing next to {p} (library-save.md section 5b)")
 
 
 def cmd_add_many(a):
@@ -925,6 +949,248 @@ def cmd_unpack(a):
         print("PLUGINS_NEEDED\t" + ", ".join(man["plugins"]))
 
 
+# ---------------------------------------------------------------- find (library first, one call)
+def _hits_in_lines(lines, q):
+    out = []
+    for n, line in enumerate(lines, 1):
+        t = norm(line)
+        if all(w in t for w in q):
+            out.append((n, line.strip()))
+    return out
+
+
+def cmd_find_all(a):
+    """Everything the home folder already has for these words - run before designing, downloading or analysing."""
+    h = need_home(home_dir(a.home))
+    q = [w for w in norm(" ".join(a.words)).split() if w not in FILLER] or norm(" ".join(a.words)).split()
+    total = 0
+    hits = find(h, a.words) if os.path.isfile(catalog_path(h)) else []
+    for s, full, r in hits[:a.n]:
+        total += 1
+        print(f"LIBRARY\t{r['id']}\t{r['name']}{' / ' + r['local_name'] if r['local_name'] else ''}\t{r['summary']}\t{r['folder']}")
+    tj = rjson(os.path.join(h, "settings", "techniques.json"), {}) or {}
+    shown = 0
+    for t in tj.get("techniques", []):
+        blob = norm(" ".join([t.get("id", ""), t.get("name", ""), t.get("what", ""), t.get("when", ""),
+                              " ".join(t.get("aka", []))]))
+        if all(w in blob for w in q) and shown < a.n:
+            shown += 1
+            total += 1
+            print(f"TECHNIQUE\t{t.get('id')}\t{t.get('name')}\t{t.get('how', '')[:120]}")
+    idx = os.path.join(h, "assets", "INDEX.tsv")
+    if os.path.isfile(idx):
+        with open(idx, encoding="utf-8") as f:
+            rows = f.read().splitlines()[1:]
+        for _, line in _hits_in_lines(rows, q)[:a.n]:
+            total += 1
+            print("ASSET\t" + line)
+    ext = os.path.join(h, "extensions")
+    if os.path.isdir(ext):
+        for d in sorted(os.listdir(ext)):
+            p = os.path.join(ext, d)
+            if not os.path.isdir(p):
+                continue
+            text = d
+            for fn in ("README.md", "recipe.md"):
+                if os.path.isfile(os.path.join(p, fn)):
+                    with open(os.path.join(p, fn), encoding="utf-8", errors="replace") as f:
+                        text += " " + f.read(4000)
+            if all(w in norm(text) for w in q):
+                total += 1
+                print(f"EXTENSION\t{d}\t{os.path.join('extensions', d)}")
+    ses = os.path.join(h, "learning", "sessions")
+    if os.path.isdir(ses):
+        found = []
+        for fn in sorted(os.listdir(ses), reverse=True):
+            if fn.endswith(".md"):
+                with open(os.path.join(ses, fn), encoding="utf-8", errors="replace") as f:
+                    if all(w in norm(fn + " " + f.read()) for w in q):
+                        found.append(fn)
+        for fn in found[:a.n]:
+            total += 1
+            print(f"SESSION\tlearning/sessions/{fn}")
+    ki = os.path.join(h, "learning", "known-issues.md")
+    if os.path.isfile(ki):
+        with open(ki, encoding="utf-8", errors="replace") as f:
+            heads = [ln for ln in f.read().splitlines() if ln.startswith(("## ", "- 20"))]
+        for _, line in _hits_in_lines(heads, q)[:a.n]:
+            total += 1
+            print("ISSUE\t" + line[:160])
+    print(f"FOUND {total}" if total else "NO_MATCH")
+
+
+# ---------------------------------------------------------------- style-get
+def cmd_style_get(a):
+    h = need_home(home_dir(a.home))
+    p = os.path.join(h, "styles", a.slug, "style.json")
+    st = rjson(p)
+    if st is None:
+        sys.exit(f"ERROR: {p} not found (keremkit.py search {a.slug} --type style)")
+    for k in a.keys:
+        v = get_key(st, k)
+        print(f"{k}\t{'MISSING' if v == '__MISSING__' else json.dumps(v, ensure_ascii=False)}")
+
+
+# ---------------------------------------------------------------- project map
+MAP_COLS = ["kind", "name", "comp", "time", "purpose", "status", "updated"]
+NAME_COLS = ["thing", "canonical", "note"]
+BRANDKIT_TEMPLATE = """# Brand kit and build values of this project
+
+Read before building any new element here; new elements reuse these values. Grep it, keep it short.
+
+## Colours (HEX, role)
+
+## Fonts (PostScript name, weight, sizes, tracking)
+
+## Stroke / shadow / glow
+
+## Logos and brand files (path)
+
+## Motion (entrance/exit type, durations, easing influence, rig, motion blur settings, wiggle/tilt)
+
+## Effects (name: non-default values, e.g. Bevel Alpha, Glow, Keylight, glass refraction)
+
+## Organisation (layer colour labels of this project, naming pattern)
+"""
+
+
+def map_dir(path):
+    d = os.path.abspath(path)
+    if os.path.isfile(d) or os.path.splitext(d)[1].lower() in (".aep", ".prproj"):
+        d = os.path.dirname(d)
+    if os.path.basename(d) != "_keremkit":
+        d = os.path.join(d, "_keremkit")
+    return d
+
+
+def read_tsv(p, cols):
+    if not os.path.isfile(p):
+        return []
+    with open(p, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    head = lines[0].split("\t") if lines else cols
+    return [dict(zip(head, ln.split("\t") + [""] * len(head))) for ln in lines[1:] if ln.strip()]
+
+
+def write_tsv(p, cols, rows):
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\t".join(cols) + "\n")
+        for r in rows:
+            f.write("\t".join(str(r.get(c, "")).replace("\t", " ").replace("\n", " ") for c in cols) + "\n")
+
+
+def cmd_map(a):
+    d = map_dir(a.project)
+    mp, np_, bk, lg = (os.path.join(d, n) for n in ("map.tsv", "names.tsv", "brandkit.md", "log.md"))
+    if a.action == "init":
+        os.makedirs(d, exist_ok=True)
+        made = []
+        for p, text in ((mp, "\t".join(MAP_COLS) + "\n"), (np_, "\t".join(NAME_COLS) + "\n"), (bk, BRANDKIT_TEMPLATE),
+                        (lg, "# Project log\n\nOne dated line per session: done, decisions, open items, files.\n\n")):
+            if not os.path.exists(p):              # never overwrite what earlier chats wrote
+                with open(p, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(text)
+                made.append(os.path.basename(p))
+        print(f"OK {d}\tcreated: {', '.join(made) if made else 'nothing (all present)'}")
+        return
+    if not os.path.isdir(d):
+        sys.exit(f"ERROR: no project map in {d} - run: keremkit.py map init <project>")
+    if a.action == "add":
+        if not (a.kind and a.name):
+            sys.exit("ERROR: map add needs --kind and --name")
+        rows = read_tsv(mp, MAP_COLS)
+        key = (a.kind, a.name, a.comp or "")
+        row = next((r for r in rows if (r["kind"], r["name"], r["comp"]) == key), None)
+        if row is None:
+            row = {c: "" for c in MAP_COLS}
+            row.update(kind=a.kind, name=a.name, comp=a.comp or "")
+            rows.append(row)
+        for c in ("time", "purpose", "status"):
+            if getattr(a, c) is not None:
+                row[c] = getattr(a, c)
+        row["updated"] = date.today().isoformat()
+        write_tsv(mp, MAP_COLS, rows)
+        print(f"OK map {a.kind} {a.name}" + (f" in {a.comp}" if a.comp else ""))
+    elif a.action == "find":
+        q = norm(" ".join(a.words)).split()
+        total = 0
+        for p in (mp, np_, bk, lg):
+            if os.path.isfile(p):
+                with open(p, encoding="utf-8") as f:
+                    for n, line in _hits_in_lines(f.read().splitlines(), q):
+                        total += 1
+                        print(f"{os.path.basename(p)}:{n}\t{line[:200]}")
+        print(f"FOUND {total}" if total else "NO_MATCH")
+    elif a.action == "show":
+        rows = [r for r in read_tsv(mp, MAP_COLS) if not a.open or r["status"] not in ("done", "")]
+        for r in rows:
+            print("\t".join(r.get(c, "") for c in MAP_COLS))
+        print(f"ROWS {len(rows)}")
+    elif a.action == "name":
+        if not a.words:
+            sys.exit("ERROR: map name needs the thing, e.g. map name <project> iphone mockup")
+        thing = " ".join(a.words)
+        rows = read_tsv(np_, NAME_COLS)
+        t = norm(thing)
+        hit = next((r for r in rows if norm(r["thing"]) == t or norm(r["canonical"]) == t), None) \
+            or next((r for r in rows if t in norm(r["thing"] + " " + r["canonical"])), None)
+        if hit and not a.canon:
+            print(f"CANONICAL\t{hit['canonical']}\t{hit['thing']}\t{hit['note']}")
+        elif a.canon:
+            if hit and hit["canonical"] != a.canon:
+                sys.exit(f"ERROR: '{hit['thing']}' already has the name {hit['canonical']} - use it, or edit names.tsv on purpose")
+            if not hit:
+                rows.append({"thing": thing, "canonical": a.canon, "note": a.note or ""})
+                write_tsv(np_, NAME_COLS, rows)
+            print(f"OK name {thing} -> {a.canon}")
+        else:
+            print("NONE\tmake one by standards.md naming, then: map name <project> <thing> --canon <NAME>")
+
+
+# ---------------------------------------------------------------- learning archive
+DONE_RX = re.compile(r"status\W{0,4}\s*done", re.I)
+
+
+def cmd_learning_archive(a):
+    """Move sections that say 'Status: done ...' out of a learning file, so agents read only what is open."""
+    h = need_home(home_dir(a.home))
+    p = a.file or os.path.join(h, "learning", "skill-change-requests.md")
+    if not os.path.isabs(p) and not os.path.isfile(p):
+        p = os.path.join(h, "learning", p)
+    if not os.path.isfile(p):
+        sys.exit(f"ERROR: {p} not found")
+    with open(p, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    head, sections, cur = [], [], None
+    for ln in lines:
+        if ln.startswith("## "):
+            cur = [ln]
+            sections.append(cur)
+        elif cur is None:
+            head.append(ln)
+        else:
+            cur.append(ln)
+    done = [s for s in sections if any(DONE_RX.search(x) for x in s)]
+    keep = [s for s in sections if s not in done]
+    for s in done:
+        print(f"{'WOULD MOVE' if a.dry_run else 'MOVED'}\t{s[0][3:][:100]}")
+    if a.dry_run or not done:
+        print(f"OK done={len(done)} open={len(keep)}" + (" (dry run)" if a.dry_run else ""))
+        return
+    arch = os.path.splitext(p)[0] + ".archive.md"
+    shutil.copy2(p, p + ".bak")
+    new_file = not os.path.exists(arch)
+    with open(arch, "a", encoding="utf-8", newline="\n") as f:
+        if new_file:
+            f.write(f"# Archive of {os.path.basename(p)}\n\nDone items, moved by `keremkit.py learning-archive`. Not read by agents.\n")
+        f.write(f"\n<!-- moved {date.today().isoformat()} -->\n\n")
+        for s in done:
+            f.write("\n".join(s).rstrip() + "\n\n")
+    with open(p, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(head + [x for s in keep for x in s]).rstrip() + "\n")
+    print(f"OK moved={len(done)} open={len(keep)} -> {arch} (backup {os.path.basename(p)}.bak)")
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -988,6 +1254,28 @@ def main():
     sc.add_argument("src")
     sc.add_argument("dst")
     sc.add_argument("--overwrite", action="store_true")
+    fa = sp.add_parser("find")
+    fa.add_argument("words", nargs="+")
+    fa.add_argument("--n", type=int, default=4)
+    sg = sp.add_parser("style-get")
+    sg.add_argument("slug")
+    sg.add_argument("keys", nargs="+")
+    mpp = sp.add_parser("map")
+    mpp.add_argument("action", choices=["init", "add", "find", "name", "show"])
+    mpp.add_argument("project", help="project file or folder (the map lives in <folder>/_keremkit/)")
+    mpp.add_argument("words", nargs="*")
+    mpp.add_argument("--kind", help="comp | layer | element | asset | open | decision")
+    mpp.add_argument("--name")
+    mpp.add_argument("--comp")
+    mpp.add_argument("--time", help="e.g. 52:00-54:15")
+    mpp.add_argument("--purpose")
+    mpp.add_argument("--status", help="open | done | ...")
+    mpp.add_argument("--canon", help="map name: register this canonical name")
+    mpp.add_argument("--note")
+    mpp.add_argument("--open", action="store_true", help="map show: only rows that are not done")
+    la = sp.add_parser("learning-archive")
+    la.add_argument("--file", help="default learning/skill-change-requests.md")
+    la.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     if a.cmd == "cat" and a.action == "add" and not all([a.key, a.prefix, a.name]):
         ap.error("cat add needs --key --prefix --name")
@@ -995,7 +1283,8 @@ def main():
      "new-id": cmd_new_id, "plan": cmd_plan, "add": cmd_add, "style-archive": cmd_style_archive,
      "validate": cmd_validate, "reindex": cmd_reindex, "summary": cmd_summary, "doctor": cmd_doctor, "pack": cmd_pack,
      "unpack": cmd_unpack, "version": cmd_version, "stat": cmd_stat, "safe-copy": cmd_safe_copy, "save-prep": cmd_save_prep,
-     "save-check": cmd_save_check, "add-many": cmd_add_many}[a.cmd](a)
+     "save-check": cmd_save_check, "add-many": cmd_add_many, "find": cmd_find_all, "style-get": cmd_style_get,
+     "map": cmd_map, "learning-archive": cmd_learning_archive}[a.cmd](a)
 
 
 if __name__ == "__main__":

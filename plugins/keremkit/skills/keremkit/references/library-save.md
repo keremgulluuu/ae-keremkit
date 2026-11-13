@@ -30,6 +30,7 @@ Propose good names without asking; adopt the user's corrections.
 ## 3. Make it one clean comp
 
 - Not a single comp yet? `comp.precompose` the layers into the `LIB_` comp (moveAll true). Name its layers with standard prefixes.
+- Layers with a parent or a linked expression cannot be moved with `layer.copy_to_comp`: unparent with `jump: true` first (work copy only) - `ae-ops.md` → Session flow pitfalls.
 - **Parameters** (values that will change per use: text, numbers, main color, duration, size) must sit on **top-level** layers of the `LIB_` comp - nested precomps are shared between duplicates. Best: a `CTRL_<Name>` null with Slider/Color/Checkbox controls wired by expression. If that already exists, use it. If building it would take more than a few ops, map parameters directly to the target properties instead (e.g. `TXT_Value` Source Text) - the user can ask for a control layer later.
 
 ## 4. Write the self-contained file
@@ -65,6 +66,22 @@ A parameter:
 `type`: number | text | color ([r,g,b] 0-1) | bool | seconds | point. Text uses `"op": "text.set_content"`.
 
 Then `keremkit.py add <item folder>/meta.json` (re-running updates the row).
+
+## 5b. LOGIC.md - save the mechanism, not only the comp
+
+Every library save also writes `<item folder>/LOGIC.md` (template: `assets/LOGIC.example.md`). Without it the next chat can place the item but cannot rebuild the same effect on a different element. `save-check` prints `TODO LOGIC.md missing` until it exists.
+
+Write it from what you just built or read (the batch you sent, `digest.py --deep --comp LIB_...`) - no extra AE reads:
+1. What it looks like (one line).
+2. The rig: which nulls / precomps / mattes carry what; which layer has no own keys.
+3. Every effect with its **non-default** values.
+4. Every key: time relative to the in-point, value, ease in/out influence (and speed when not 0).
+5. Expressions verbatim.
+6. Rules (what happens when; position/size rules), and **how to apply it to another element**: text, icon/image, video, 2D vs 3D.
+7. Matching SFX, dependencies (fonts, plugins) and hand-only steps (e.g. Environment light Source).
+8. An element with adjustment layers (zoom, glass refraction, focus blur): say "copy these layers into the target comp, do not nest" here and set `meta.place_as: "layers"`.
+
+If the mechanism is useful on its own, also register a technique (`techniques.py add`, recipe in `extensions/<pack-or-id>/<id>.md`) and list its id in `meta.techniques` and in the style that uses it.
 
 **Several items** - write one tab-separated table instead of one meta.json each, and run `keremkit.py add-many items.tsv` (folders, meta.json and catalog rows in one go). Columns: `id category name local tags summary comp size fps duration` (required) plus `pack original_comp fonts footage usage_note`; `tags`, `fonts`, `footage` comma-separated, `size` as `1080x1920`, `local` = the name in `language.library`. Add `params` afterwards only for items that have them.
 

@@ -8,7 +8,10 @@ go to a results file that is read only when something needs a closer look. Previ
 
   list   [REGEX]                       tool names (+ first line of the description)
   schema TOOL                          input schema of one tool
-  run    PLAN.json [--out RESULTS.json] [--continue-on-error] [--timeout 120]
+  run    PLAN.json [--out RESULTS.json] [--continue-on-error] [--timeout 120] [--from N] [--rerun]
+
+A plan whose results file already shows applied steps is refused (a new process replays nothing - the steps would
+run twice); continue with --from N. idempotency keys are cleaned to [A-Za-z0-9._:-].
 
 PLAN.json:
   {"expected_project_path": "C:/.../work copy.prproj",       # added to every step that has no own value
@@ -29,6 +32,7 @@ import argparse
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -157,17 +161,46 @@ def short(v, n=160):
 DEFAULT_PICK = ("data.outcome", "data.verified", "receipt.outcome", "error.code", "error.message", "message")
 
 
+KEY_RX = re.compile(r"[^A-Za-z0-9._:-]+")
+
+
+def clean_keys(args):
+    """idempotency keys must match ^[A-Za-z0-9._:-]+$ (an effect name with spaces stopped a plan once)."""
+    for k in ("idempotency_key", "idempotencyKey"):
+        if isinstance(args.get(k), str):
+            args[k] = KEY_RX.sub("_", args[k]).strip("_") or "k"
+    return args
+
+
+def applied_steps(out):
+    try:
+        old = json.load(open(out, encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [r for r in old if isinstance(r, dict) and r.get("ok")]
+
+
 def cmd_run(a):
     plan = json.load(open(a.plan, encoding="utf-8"))
     steps = plan["steps"] if isinstance(plan, dict) else plan
     epp = plan.get("expected_project_path") if isinstance(plan, dict) else None
     out = a.out or os.path.splitext(a.plan)[0] + ".results.json"
+    done = applied_steps(out)
+    if done and not a.start and not a.rerun:
+        # every run is a new server process: idempotency keys do NOT carry over, so a re-run applies everything again
+        nxt = max(r["step"] for r in done) + 1
+        sys.exit(f"ALREADY_RUN {len(done)} step(s) of this plan were applied ({out}). Re-running would apply them "
+                 f"twice. Continue with --from {nxt}, or --rerun only if you undid them.")
+    first = a.start or 1
     cmd, env = server_command()
     cli = Client(cmd, env, a.timeout)
-    saved, results, failed = {}, [], 0
+    saved, failed = {}, 0
+    results = [r for r in done if r["step"] < first] if a.start else []
     try:
         for i, st in enumerate(steps, 1):
-            args = dict(st.get("args") or {})
+            if i < first:
+                continue
+            args = clean_keys(dict(st.get("args") or {}))
             if epp and "expected_project_path" not in args and not st.get("no_project_guard"):
                 args["expected_project_path"] = epp
             if st.get("token_from"):
@@ -245,6 +278,8 @@ def main():
     r.add_argument("plan")
     r.add_argument("--out")
     r.add_argument("--continue-on-error", action="store_true")
+    r.add_argument("--from", dest="start", type=int, help="start at step N (steps before it count as applied)")
+    r.add_argument("--rerun", action="store_true", help="run again although the results file shows applied steps")
     r.add_argument("--timeout", type=float, default=120, help="seconds per call")
     a = ap.parse_args()
     if a.cmd == "schema":

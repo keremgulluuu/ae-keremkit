@@ -31,4 +31,10 @@ Where a sound goes and how it lines up (its start, its loudest point, a fixed of
 4. AE, one batch: `project.import_file` each needed file once (put them in an `04_SES/SFX` folder), `layer.create_footage` per event named `SFX_<Event>_<nn>`, `layer.set_timing` (start = event time + `offset_s`), Audio Levels via `property.set` (`level_db`).
 5. Verify with `comp.info` (count, times). Report one line: how many SFX, which kinds.
 
+Many SFX (50+): do the timing and levels locally (numpy + ffmpeg on the event list), then one generated op list; never write the ops twice (once in Python output, once pasted). Put them in one `AUD_SFX` precomp.
+
+## Optional: the earshot MCP ("ears")
+
+When the session has the `earshot` MCP, Claude can judge sounds it cannot hear: `rank` many candidate files → `find` the best moment in the winner → `measure` (LUFS, true peak, noise floor) or `timeline` on a rendered mix to check sync with cuts. Use it for choosing between files and for checking masking under speech; it is not required - without it, the local ffmpeg/numpy path above works. `llm_critique` uploads audio: only with the user's explicit consent.
+
 The first time an edit could use SFX and `sfx.enabled` is null, ask once: "Should edits use sound effects?" - if yes and there are no rules yet, propose a minimal set (whoosh on transitions, soft click on UI entrances) and save what the user accepts.

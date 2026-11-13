@@ -50,7 +50,7 @@ Three ways - all end with a draft shown to the user for confirmation, then `kere
 - **By conversation:** walk the sections in the table above, asking only for what the user has not already said, a few questions at a time. Accept "sen karar ver" and record the choice made.
 - **From the current chat:** if the user just edited a video here, extract the decisions and corrections they made in this conversation.
 - **From a reference video:** `video-reference.md` - rhythm, look and motion measured from the video, then confirmed with the user.
-- **From a finished project:** `ae_project_export_json(outPath=...)` -> `digest.py <file> [--comp SCN_...]` -> draft style from the digest (fonts, palette, layer roles, effects, comp formats) -> ask about what a project cannot show (cut tightness, split cues, SFX intent).
+- **From a finished project:** `ae_project_export_json(outPath=...)` -> `digest.py <file> [--comp SCN_...]` (`--deep` per animated comp) -> draft style from the digest (fonts, palette, layer roles, effects, comp formats) -> ask about what a project cannot show (cut tightness, split cues, SFX intent).
 - **From a Premiere project (.prproj):** on a copy, `prproj.py analyze` -> draft; Premiere-only parts go under `"premiere"` in style.json. Steps in `premiere.md` -> Learning a style.
 - **Before writing `styles/<slug>/style.json`, always** `keremkit.py search "<name>" --type style`. Same name = same slug = same folder: if it exists, ask (a new version through the archive, or a new name). Never write over a style.
 
@@ -58,7 +58,7 @@ Three ways - all end with a draft shown to the user for confirmation, then `kere
 
 A style learned from a project must hold every element of the edit. Missing one means the next edit is built without it, and the user has to find it. Go through the inventory line by line, not from memory of what "usually matters":
 
-1. **Make the inventory.** Premiere: `prproj.py analyze <copy> --seq <edited sequence> --out a.json`, then `prproj.py inventory a.json`. After Effects: the project export, then `digest.py` per scene comp, and `layer.info` for animated layers. The inventory is the list to work through. Note its TOTAL line.
+1. **Make the inventory.** Premiere: `prproj.py analyze <copy> --seq <edited sequence> --out a.json`, then `prproj.py inventory a.json`. After Effects: the project export, then `digest.py` per scene comp, then `digest.py <export> --comp <comp> --deep --noaudio` for the animated comps (keys with ease, expressions, effect names; add `--params "<layer regex>"` only for the layers whose values you need). Read its GAPS line: blend modes, track mattes, adjustment flags, mask modes and text-selector keys are not in the export - `property.get` them on the few layers that matter. If KeremKit built the project, first `keremkit.py find <project name>` for its session reports. The inventory is the list to work through. Note its TOTAL line.
 2. **Every track, top to bottom, video and audio.** What it holds (camera, b-roll, product, text, captions, overlays, SFX, music), and whether the track is muted or locked.
 3. **Every clip on it.** Source file, start and end, in/out, speed, reverse, clip gain, the disabled flag. Also how its length is chosen: follows a sentence, a section, a fixed duration or the product video.
 4. **Every effect on every clip, including on nested clips** (product videos, cards, intros).

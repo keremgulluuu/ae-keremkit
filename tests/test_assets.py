@@ -124,7 +124,9 @@ def test_links_keys_import(tmp_path):
     assert bad.returncode != 0
     f = tmp_path / "lower-third.mogrt"
     f.write_bytes(b"x")
-    run("assets.py", "import", f, "-o", tmp_path / "assets", "--source", "Mixkit", "--license", "Mixkit Free License")
+    # --home: without it the import wrote a row into the real user's assets/INDEX.tsv
+    run("assets.py", "--home", tmp_path, "import", f, "-o", tmp_path / "assets", "--source", "Mixkit",
+        "--license", "Mixkit Free License")
     assert "Mixkit Free License" in (tmp_path / "assets" / "SOURCES.md").read_text(encoding="utf-8")
 
 

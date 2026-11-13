@@ -33,6 +33,7 @@ More than ~5 calls in a row (a cut, intro MOGRTs, captions, SFX, keys) → write
 - Chain a preview to its apply with `save_as` / `token_from`.
 - The plan-level `expected_project_path` is added to every step.
 - It stops at the first error and always at a recovery lock.
+- **Never re-run a partly applied plan.** Each run is a new server process, so idempotency keys from the last run do not protect anything: the applied steps would run twice (a second Tint once). `prbatch.py` refuses (`ALREADY_RUN`) when the results file shows applied steps; fix the failed step and continue with `--from N`. Keys are cleaned to `[A-Za-z0-9._:-]`.
 
 Direct MCP calls stay for a first look and for answers that decide the next step. `prbatch.py list <regex>` / `schema <tool>` look tools up without loading the schema into the chat.
 

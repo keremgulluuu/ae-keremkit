@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-11-13
+
+### Added
+- **Project map** (`references/project-map.md`, `keremkit.py map init|add|find|name|show`): `_keremkit/` next to a project holds `log.md`, a greppable `map.tsv` (comp/element/open item, time, purpose, status), `names.tsv` (one canonical name per thing) and `brandkit.md` (colours, fonts, stroke, logos, motion and effect values, layer labels). Later chats read it by search; new elements reuse it.
+- **LOGIC.md for library items** (`library-save.md` 5b, `assets/LOGIC.example.md`): rig, non-default effect values, keys with ease, expressions, rules and how to apply the effect to another element. `save-check` reminds when it is missing; `meta.logic`, `meta.techniques`, `meta.place_as`. `library-use.md`: "apply this effect to that element" rebuilds from LOGIC.md.
+- `keremkit.py find`: library, techniques, downloaded assets, extensions, session reports and known-issue headings in one call (library first).
+- `keremkit.py style-get SLUG KEY...`: read only the needed keys of a large style.
+- `keremkit.py learning-archive`: moves items marked `Status: done` out of `learning/skill-change-requests.md` (or another learning file) into `*.archive.md`.
+- `digest.py --deep --comp X [--params REGEX] [--noaudio]`: per-layer keys with ease, expressions and effects for learning a style; a GAPS line lists what AE exports never contain.
+- `transcript.py remove --index A-B --into removals.json`: manual removals by word index.
+- `references/ae-ops.md`: AE MCP parameter names that cost failed calls, cheap reads, session-flow pitfalls ("second script" dialog, boot, big opens, copy_to_comp with parents), AE 2026 / Advanced 3D defaults, render pitfalls.
+- `references/motion-blur.md`: switches, shutter settings, per-motion starting points, CC Force / Pixel Motion Blur, QC.
+- Preferences `motion.transform_rig` (parent_null | direct), `motion.blur` (always | ask | off), `organize.precomp_elements` - mechanisms only; the user's choice decides.
+- Questions explain themselves (what was found, why, options with ★) - SKILL.md and `preferences.md`.
+- Review checklist after bulk updates (`qc.md`): comp + time + what to check; also in the session report and project log. QC checks names and motion blur.
+- `sound-effects.md`: optional earshot MCP route; many-SFX builds done locally.
+
+### Changed
+- `prbatch.py` refuses to re-run a plan whose results file shows applied steps (`ALREADY_RUN`); `--from N` continues, `--rerun` overrides; idempotency keys are cleaned to `[A-Za-z0-9._:-]`.
+- `keremkit.py pref set` refuses arguments without `=` (once wiped `custom_rules`).
+- `token-budget.md`: measured expensive AE reads to avoid; skill change request format with a Status line.
+- `troubleshooting.md`, `downloads.md`: AE boot/dialog handling, Windows Chromium cookies (Firefox or a signed-in cookies.txt), Instagram/TikTok notes.
+- `organize.md`: per-project label table, canonical names, precomp checks. `design-plan.md` starts with `find` and the project's brand kit.
+
 ## [2.0.1] - 2026-11-11
 
 ### Changed
